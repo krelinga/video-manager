@@ -47,15 +47,21 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
+      - name: Extract repository name
+        run: |
+          REPO_NAME=$(basename "${{ github.repository }}")
+          echo "REPO_NAME=$REPO_NAME" >> $GITHUB_ENV
+          echo "Repository name: $REPO_NAME"
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
           tags: |
-            ${{ github.repository_owner }}/$(basename ${{ github.repository }}):${{ github.event.inputs.release_name }}
-            ${{ github.repository_owner }}/$(basename ${{ github.repository }}):latest
-      
+            ${{ github.repository_owner }}/{{ env.REPO_NAME }}:${{ github.event.inputs.release_name }}
+            ${{ github.repository_owner }}/{{ env.REPO_NAME }}:latest
+
       - name: Create and push tag
         run: |
           RELEASE_NAME="${{ github.event.inputs.release_name }}"
