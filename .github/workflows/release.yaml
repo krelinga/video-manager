@@ -59,8 +59,8 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ github.repository_owner }}/{{ env.REPO_NAME }}:${{ github.event.inputs.release_name }}
-            ${{ github.repository_owner }}/{{ env.REPO_NAME }}:latest
+            ${{ github.repository_owner }}/${{ env.REPO_NAME }}:${{ github.event.inputs.release_name }}
+            ${{ github.repository_owner }}/${{ env.REPO_NAME }}:latest
 
       - name: Create and push tag
         run: |
