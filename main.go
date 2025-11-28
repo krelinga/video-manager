@@ -13,9 +13,13 @@ import (
 
 func main() {
 	mux := http.NewServeMux()
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("ok"))
+	})
 
 	// Initialize configuration
-	config := config.New()	
+	config := config.New()
 
 	if config.RunDiscService {
 		// Initialize and register Disc service
