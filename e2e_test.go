@@ -99,5 +99,9 @@ func TestBinaryStartsWithPostgres(t *testing.T) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer videoManagerContainer.Terminate(ctx)
+	defer func() {
+		if err := videoManagerContainer.Terminate(ctx); err != nil {
+			t.Logf("failed to terminate video-manager container: %v", err)
+		}
+	}()
 }
