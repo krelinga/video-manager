@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 )
@@ -33,6 +34,16 @@ type Postgres struct {
 	User     string
 	Password string
 	DBName   string
+}
+
+func (p *Postgres) URL() string {
+	return fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable",
+		url.QueryEscape(p.User),
+		url.QueryEscape(p.Password),
+		url.QueryEscape(p.Host),
+		p.Port,
+		url.QueryEscape(p.DBName),
+	)
 }
 
 func New() *Config {
