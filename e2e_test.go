@@ -83,12 +83,6 @@ func TestBinaryStartsWithPostgres(t *testing.T) {
 		FromDockerfile: testcontainers.FromDockerfile{
 			Context:    ".",          // Path to the directory containing the Dockerfile
 			Dockerfile: "Dockerfile", // Name of the Dockerfile
-			BuildArgs: map[string]*string{
-				"--no-cache": nil,
-			},
-			// BuildOptionsModifier: func(buildOptions *build.ImageBuildOptions) {
-			// 	buildOptions.BuildArgs
-			// },
 		},
 		ExposedPorts: []string{"25009/tcp"},
 		Env: map[string]string{
