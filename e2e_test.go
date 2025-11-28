@@ -22,11 +22,6 @@ func TestBinaryStartsWithPostgres(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create network: %v", err)
 	}
-	defer func() {
-		if err := net.Remove(ctx); err != nil {
-			t.Logf("failed to remove network: %v", err)
-		}
-	}()
 
 	// Set up PostgreSQL test container
 	postgresPassword := "testpassword"
@@ -53,11 +48,6 @@ func TestBinaryStartsWithPostgres(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to start postgres container: %v", err)
 	}
-	defer func() {
-		if err := postgresContainer.Terminate(ctx); err != nil {
-			t.Logf("failed to terminate postgres container: %v", err)
-		}
-	}()
 
 	// Get the PostgreSQL container's address
 	host, err := postgresContainer.Host(ctx)
@@ -88,16 +78,11 @@ func TestBinaryStartsWithPostgres(t *testing.T) {
 		WaitingFor: wait.ForHTTP("/health").WithPort("25009/tcp"),
 	}
 
-	videoManagerContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+	_, err = testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: videoManagerReq,
 		Started:          true,
 	})
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer func() {
-		if err := videoManagerContainer.Terminate(ctx); err != nil {
-			t.Logf("failed to terminate video-manager container: %v", err)
-		}
-	}()
 }
