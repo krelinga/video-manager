@@ -11,8 +11,8 @@ var ErrMissingRequiredEnvVar = errors.New("missing required environment variable
 const EnvPostgresPassword = "VIDEO_MANAGER_POSTGRES_PASSWORD"
 
 type Config struct {
-	DiscInboxDir string
-	HttpPort     int
+	DiscInboxDir   string
+	HttpPort       int
 	RunDiscService bool
 	PostresConfig  *Postres
 }
@@ -28,23 +28,23 @@ type Postres struct {
 func New() *Config {
 	return &Config{
 		// TODO: make these configurable.
-		DiscInboxDir: "/nas/media/video-manager/disc/inbox",
-		HttpPort:     25009,
+		DiscInboxDir:   "/nas/media/video-manager/disc/inbox",
+		HttpPort:       25009,
 		RunDiscService: true,
 		PostresConfig: &Postres{
 			Host:     "nas-docker.i.krel.ing",
-			Port:	 5432,
-			User: "video_manager_prod",
-			Password: getPostgresPassword(),
+			Port:     5432,
+			User:     "video_manager_prod",
+			Password: getRequiredVar(EnvPostgresPassword),
 			DBName:   "video_manager_prod",
 		},
 	}
 }
 
-func getPostgresPassword() string {
-	pw, ok := os.LookupEnv(EnvPostgresPassword)
+func getRequiredVar(key string) string {
+	val, ok := os.LookupEnv(key)
 	if !ok {
-		panic(fmt.Errorf("%w: %s", ErrMissingRequiredEnvVar, EnvPostgresPassword))
+		panic(fmt.Errorf("%w: %s", ErrMissingRequiredEnvVar, key))
 	}
-	return pw
+	return val
 }
