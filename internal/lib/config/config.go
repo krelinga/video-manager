@@ -4,20 +4,30 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 )
 
-var ErrMissingRequiredEnvVar = errors.New("missing required environment variable")
+var (
+	ErrMissingRequiredEnvVar = errors.New("missing required environment variable")
+	ErrMalformedEnvVar       = errors.New("malformed environment variable")
+)
 
-const EnvPostgresPassword = "VIDEO_MANAGER_POSTGRES_PASSWORD"
+const (
+	EnvPostgresHost     = "VIDEO_MANAGER_POSTGRES_HOST"
+	EnvPostgresPort     = "VIDEO_MANAGER_POSTGRES_PORT"
+	EnvPostgresDBName   = "VIDEO_MANAGER_POSTGRES_DBNAME"
+	EnvPostgresUser     = "VIDEO_MANAGER_POSTGRES_USER"
+	EnvPostgresPassword = "VIDEO_MANAGER_POSTGRES_PASSWORD"
+)
 
 type Config struct {
 	DiscInboxDir   string
 	HttpPort       int
 	RunDiscService bool
-	PostresConfig  *Postres
+	Postgres  *Postgres
 }
 
-type Postres struct {
+type Postgres struct {
 	Host     string
 	Port     int
 	User     string
@@ -31,12 +41,12 @@ func New() *Config {
 		DiscInboxDir:   "/nas/media/video-manager/disc/inbox",
 		HttpPort:       25009,
 		RunDiscService: true,
-		PostresConfig: &Postres{
-			Host:     "nas-docker.i.krel.ing",
-			Port:     5432,
-			User:     "video_manager_prod",
+		Postgres: &Postgres{
+			Host:     getRequiredVar(EnvPostgresHost),
+			Port:     parseInt(getVarWithDefault(EnvPostgresPort, "5432")),
+			User:     getRequiredVar(EnvPostgresUser),
 			Password: getRequiredVar(EnvPostgresPassword),
-			DBName:   "video_manager_prod",
+			DBName:   getRequiredVar(EnvPostgresDBName),
 		},
 	}
 }
@@ -47,4 +57,21 @@ func getRequiredVar(key string) string {
 		panic(fmt.Errorf("%w: %s", ErrMissingRequiredEnvVar, key))
 	}
 	return val
+}
+
+func getVarWithDefault(key, defaultVal string) string {
+	val, ok := os.LookupEnv(key)
+	if !ok {
+		return defaultVal
+	}
+	return val
+}
+
+func parseInt(s string) int {
+	i, err := strconv.Atoi(s)
+	if err != nil {
+		panic(fmt.Errorf("%w: could not parse %q as int", ErrMalformedEnvVar, s))
+	}
+
+	return i
 }
