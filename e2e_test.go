@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/network"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
@@ -17,17 +18,12 @@ func TestBinaryStartsWithPostgres(t *testing.T) {
 	defer cancel()
 
 	// Create a network for the containers
-	network, err := testcontainers.GenericNetwork(ctx, testcontainers.GenericNetworkRequest{
-		NetworkRequest: testcontainers.NetworkRequest{
-			Name:           "video-manager-test",
-			CheckDuplicate: true,
-		},
-	})
+	net, err := network.New(ctx, network.WithCheckDuplicate())
 	if err != nil {
 		t.Fatalf("failed to create network: %v", err)
 	}
 	defer func() {
-		if err := network.Remove(ctx); err != nil {
+		if err := net.Remove(ctx); err != nil {
 			t.Logf("failed to remove network: %v", err)
 		}
 	}()
@@ -46,7 +42,7 @@ func TestBinaryStartsWithPostgres(t *testing.T) {
 			"POSTGRES_PASSWORD": postgresPassword,
 			"POSTGRES_DB":       postgresDB,
 		},
-		Networks:   []string{network.(*testcontainers.DockerNetwork).ID},
+		Networks:   []string{net.Name},
 		WaitingFor: wait.ForLog("database system is ready to accept connections").WithOccurrence(2),
 	}
 
@@ -88,8 +84,8 @@ func TestBinaryStartsWithPostgres(t *testing.T) {
 			"VIDEO_MANAGER_POSTGRES_USER":     postgresUser,
 			"VIDEO_MANAGER_POSTGRES_PASSWORD": postgresPassword,
 		},
-		Networks:    []string{network.(*testcontainers.DockerNetwork).ID},
-		WaitingFor:   wait.ForHTTP("/health").WithPort("25009/tcp"),
+		Networks:   []string{net.Name},
+		WaitingFor: wait.ForHTTP("/health").WithPort("25009/tcp"),
 	}
 
 	videoManagerContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
