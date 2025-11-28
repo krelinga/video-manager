@@ -2,9 +2,7 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"os"
-	"os/exec"
+	"log"
 	"testing"
 	"time"
 
@@ -77,51 +75,29 @@ func TestBinaryStartsWithPostgres(t *testing.T) {
 	}
 
 	// Build the binary using Docker
-	tmpDir, err := os.MkdirTemp("", "video-manager-e2e-*")
+	videoManagerReq := testcontainers.ContainerRequest{
+		FromDockerfile: testcontainers.FromDockerfile{
+			Context:    ".",          // Path to the directory containing the Dockerfile
+			Dockerfile: "Dockerfile", // Name of the Dockerfile
+		},
+		ExposedPorts: []string{"25009/tcp"},
+		Env: map[string]string{
+			"VIDEO_MANAGER_POSTGRES_HOST":     host,
+			"VIDEO_MANAGER_POSTGRES_PORT":     port.Port(),
+			"VIDEO_MANAGER_POSTGRES_DBNAME":   postgresDB,
+			"VIDEO_MANAGER_POSTGRES_USER":     postgresUser,
+			"VIDEO_MANAGER_POSTGRES_PASSWORD": postgresPassword,
+		},
+		Networks:    []string{network.(*testcontainers.DockerNetwork).ID},
+		WaitingFor:   wait.ForHTTP("/health").WithPort("25009/tcp"),
+	}
+
+	videoManagerContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: videoManagerReq,
+		Started:          true,
+	})
 	if err != nil {
-		t.Fatalf("failed to create temp directory: %v", err)
+		log.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
-
-	cmd := exec.CommandContext(ctx, "docker", "build", "-t", "video-manager-test:latest", ".")
-	if output, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("failed to build docker image: %v\noutput: %s", err, string(output))
-	}
-	defer func() {
-		// Clean up the docker image
-		exec.Command("docker", "rmi", "video-manager-test:latest").Run()
-	}()
-
-	// Extract binary from the docker image
-	cmd = exec.CommandContext(ctx, "docker", "run", "--rm", "-v", fmt.Sprintf("%s:/out", tmpDir), "video-manager-test:latest", "cp", "/app/video-manager", "/out/video-manager")
-	if output, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("failed to extract binary from docker image: %v\noutput: %s", err, string(output))
-	}
-
-	binaryPath := fmt.Sprintf("%s/video-manager", tmpDir)
-
-	// Set up environment variables for the binary
-	env := os.Environ()
-	env = append(env, fmt.Sprintf("VIDEO_MANAGER_POSTGRES_HOST=%s", host))
-	env = append(env, fmt.Sprintf("VIDEO_MANAGER_POSTGRES_PORT=%s", port.Port()))
-	env = append(env, fmt.Sprintf("VIDEO_MANAGER_POSTGRES_DBNAME=%s", postgresDB))
-	env = append(env, fmt.Sprintf("VIDEO_MANAGER_POSTGRES_USER=%s", postgresUser))
-	env = append(env, fmt.Sprintf("VIDEO_MANAGER_POSTGRES_PASSWORD=%s", postgresPassword))
-
-	// Start the binary in a separate goroutine with a timeout
-	binaryCtx, binaryCancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer binaryCancel()
-
-	binaryCmd := exec.CommandContext(binaryCtx, binaryPath)
-	binaryCmd.Env = env
-
-	output, err := binaryCmd.CombinedOutput()
-	if err != nil {
-		// Check if the error is just from context timeout (expected behavior after startup)
-		if binaryCtx.Err() == context.DeadlineExceeded {
-			// This is fine - the binary started and ran until we cancelled the context
-			return
-		}
-		t.Fatalf("binary failed to start or run: %v\noutput: %s", err, string(output))
-	}
+	defer videoManagerContainer.Terminate(ctx)
 }
