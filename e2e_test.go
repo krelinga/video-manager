@@ -15,8 +15,16 @@ import (
 // TestBinaryStartsWithPostgres verifies that the video-manager binary can start successfully
 // with a PostgreSQL database connection configured via environment variables.
 func TestBinaryStartsWithPostgres(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	defer cancel()
+	ctx := context.Background()
+	if deadline, ok := t.Deadline(); ok {
+		timeRemaining := time.Until(deadline)
+		t.Log("test deadline in", timeRemaining)
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, timeRemaining)
+		defer cancel()
+	} else {
+		t.Log("no test deadline set")
+	}
 
 	// Docker multistage builds leave unnamed images behind by default, this cleans them up.
 	// This only works because we labeled the builder stage in the Dockerfile.
