@@ -18,7 +18,7 @@ func TestBinaryStartsWithPostgres(t *testing.T) {
 	defer cancel()
 
 	// Create a network for the containers
-	net, err := network.New(ctx, network.WithCheckDuplicate())
+	net, err := network.New(ctx)
 	if err != nil {
 		t.Fatalf("failed to create network: %v", err)
 	}
