@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"os/exec"
 	"testing"
 	"time"
 
@@ -16,6 +17,15 @@ import (
 func TestBinaryStartsWithPostgres(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
+
+	// Docker multistage builds leave unnamed images behind by default, this cleans them up.
+	// This only works because we labeled the builder stage in the Dockerfile.
+	defer func() {
+		cmd := exec.Command("docker", "image", "prune", "--filter", "label=stage=builder", "-f")
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("failed to prune docker images: %v", err)
+		}
+	}()
 
 	// Create a network for the containers
 	net, err := network.New(ctx)
@@ -65,6 +75,12 @@ func TestBinaryStartsWithPostgres(t *testing.T) {
 		FromDockerfile: testcontainers.FromDockerfile{
 			Context:    ".",          // Path to the directory containing the Dockerfile
 			Dockerfile: "Dockerfile", // Name of the Dockerfile
+			BuildArgs: map[string]*string{
+				"--no-cache": nil,
+			},
+			// BuildOptionsModifier: func(buildOptions *build.ImageBuildOptions) {
+			// 	buildOptions.BuildArgs
+			// },
 		},
 		ExposedPorts: []string{"25009/tcp"},
 		Env: map[string]string{

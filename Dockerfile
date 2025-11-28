@@ -1,4 +1,5 @@
 FROM golang:1.24-bookworm AS builder
+LABEL stage=builder
 
 WORKDIR /app
 
