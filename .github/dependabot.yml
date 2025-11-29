@@ -17,6 +17,6 @@ updates:
     allow:
       - dependency-name: "buf.build/gen/go/krelinga*"
     groups:
-      all-dependencies:
+      buff-schema-registry:
         patterns:
           - "*"
