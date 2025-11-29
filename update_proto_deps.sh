@@ -13,6 +13,7 @@ go get "buf.build/gen/go/krelinga/proto/protocolbuffers/go@latest"
 
 # Check if there are any changes after updating dependencies
 if ! git diff-index --quiet HEAD --; then
+    go mod tidy
     echo "Protobuf dependencies have been updated. Committing changes..."
     git add .
     git commit -m "Update protobuf dependencies."
