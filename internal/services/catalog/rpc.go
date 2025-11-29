@@ -32,6 +32,10 @@ func (s *CatalogServiceHandler) PutCard(ctx context.Context, req *connect.Reques
 	return nil, nil  // TODO
 }
 
+func (s *CatalogServiceHandler) DeleteCard(ctx context.Context, req *connect.Request[catalogv1.DeleteCardRequest]) (*connect.Response[catalogv1.DeleteCardResponse], error) {
+	return nil, nil  // TODO
+}
+
 func (s *CatalogServiceHandler) ListTmdbMovie(ctx context.Context, req *connect.Request[catalogv1.ListTmdbMovieRequest]) (*connect.Response[catalogv1.ListTmdbMovieResponse], error) {
 	return nil, nil  // TODO
 }
