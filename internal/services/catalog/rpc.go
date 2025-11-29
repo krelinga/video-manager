@@ -16,10 +16,6 @@ type CatalogServiceHandler struct {
 	DBPool *pgxpool.Pool
 }
 
-func (s *CatalogServiceHandler) PostMovieEditionKind(ctx context.Context, req *connect.Request[catalogv1.PostMovieEditionKindRequest]) (*connect.Response[catalogv1.PostMovieEditionKindResponse], error) {
-	return nil, nil  // TODO
-}
-
 func (s *CatalogServiceHandler) PutMovieEditionKind(ctx context.Context, req *connect.Request[catalogv1.PutMovieEditionKindRequest]) (*connect.Response[catalogv1.PutMovieEditionKindResponse], error) {
 	return nil, nil  // TODO
 }
