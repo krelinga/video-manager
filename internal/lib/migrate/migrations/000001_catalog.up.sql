@@ -18,8 +18,14 @@ CREATE TABLE IF NOT EXISTS catalog_movies (
 -- Create catalog_movie_edition_kinds table
 CREATE TABLE IF NOT EXISTS catalog_movie_edition_kinds (
     id SERIAL PRIMARY KEY,
-    name TEXT NOT NULL
+    name TEXT NOT NULL,
+    is_default BOOLEAN NOT NULL DEFAULT FALSE
 );
+
+-- Enforce at most one TRUE value for is_default
+CREATE UNIQUE INDEX unique_default_true
+ON catalog_movie_edition_kinds (is_default)
+WHERE is_default;
 
 -- Create catalog_movie_editions table
 CREATE TABLE IF NOT EXISTS catalog_movie_editions (
