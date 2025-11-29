@@ -6,13 +6,17 @@
 
 version: 2
 updates:
- - package-ecosystem: "devcontainers"
-   directory: "/"
-   schedule:
-     interval: weekly
- - package-ecosystem: "gomod"
-   directory: "/"
-   schedule:
-     interval: weekly
-   allow:
-     - dependency-name: "buf.build/gen/go/krelinga*"
+  - package-ecosystem: "devcontainers"
+    directory: "/"
+    schedule:
+      interval: weekly
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: weekly
+    allow:
+      - dependency-name: "buf.build/gen/go/krelinga*"
+    groups:
+      all-dependencies:
+        patterns:
+          - "*"
