@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/krelinga/video-manager/internal/lib/config"
+	"github.com/krelinga/video-manager/internal/lib/migrate"
 	"github.com/krelinga/video-manager/internal/services/disc"
 
 	"golang.org/x/net/http2"
@@ -20,6 +21,12 @@ func main() {
 
 	// Initialize configuration
 	config := config.New()
+
+	// Handle any necessary DB migrations.
+	if err := migrate.Migrate(config.Postgres); err != nil {
+		fmt.Printf("Database migration error: %v\n", err)
+		return
+	}
 
 	if config.RunDiscService {
 		// Initialize and register Disc service

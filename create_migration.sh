@@ -4,4 +4,4 @@
 
 set -e
 
-.tools/migrate/migrate create -ext sql -dir migrations -seq "$@"
+.tools/migrate/migrate create -ext sql -dir internal/lib/migrate/migrations -seq "$@"
