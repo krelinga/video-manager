@@ -17,8 +17,8 @@ func (s *CatalogServiceHandler) ListMovieEditionKind(ctx context.Context, req *c
 	}
 	sizer := page.Sizer{
 		Want: req.Msg.PageSize,
-		Def: 50,
-		Max: 100,
+		Def:  50,
+		Max:  100,
 	}
 	const query = "SELECT id, name, is_default FROM movie_edition_kinds WHERE id > $1 ORDER BY id ASC LIMIT $2"
 	rows, _ := s.DBPool.Query(ctx, query, lastSeenId, sizer.Size())
@@ -31,7 +31,7 @@ func (s *CatalogServiceHandler) ListMovieEditionKind(ctx context.Context, req *c
 		response.Msg.MovieEditionKinds = append(response.Msg.MovieEditionKinds, &catalogv1.MovieEditionKind{
 			Id:        id,
 			Name:      name,
-			// IsDefault: isDefault,  TODO: enable when field is added to proto
+			IsDefault: isDefault,
 		})
 		return nil
 	})
