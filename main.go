@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 
@@ -11,6 +12,7 @@ import (
 
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func main() {
@@ -23,6 +25,14 @@ func main() {
 	// Initialize configuration
 	config := config.New()
 
+	// Create database connection pool.
+	dbpool, err := pgxpool.New(context.Background(), config.Postgres.URL())
+	if err != nil {
+		fmt.Printf("Unable to connect to database: %v\n", err)
+		return
+	}
+	defer dbpool.Close()
+
 	// Handle any necessary DB migrations.
 	if err := migrate.Migrate(config.Postgres); err != nil {
 		fmt.Printf("Database migration error: %v\n", err)
@@ -31,7 +41,10 @@ func main() {
 
 	if config.RunCatalogService {
 		// Initialize and register Catalog service
-		catalogHandler := &catalog.CatalogServiceHandler{Config: config}
+		catalogHandler := &catalog.CatalogServiceHandler{
+			Config: config,
+			DBPool: dbpool,
+		}
 		mux.Handle(catalog.NewServiceHandler(catalogHandler))
 	}
 

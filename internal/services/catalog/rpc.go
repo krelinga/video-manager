@@ -7,15 +7,13 @@ import (
 	"buf.build/gen/go/krelinga/proto/connectrpc/go/krelinga/video_manager/catalog/v1/catalogv1connect"
 	catalogv1 "buf.build/gen/go/krelinga/proto/protocolbuffers/go/krelinga/video_manager/catalog/v1"
 	"connectrpc.com/connect"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/krelinga/video-manager/internal/lib/config"
 )
 
 type CatalogServiceHandler struct {
 	Config *config.Config
-}
-
-func (s *CatalogServiceHandler) ListMovieEditionKind(ctx context.Context, req *connect.Request[catalogv1.ListMovieEditionKindRequest]) (*connect.Response[catalogv1.ListMovieEditionKindResponse], error) {
-	return nil, nil  // TODO
+	DBPool *pgxpool.Pool
 }
 
 func (s *CatalogServiceHandler) PostMovieEditionKind(ctx context.Context, req *connect.Request[catalogv1.PostMovieEditionKindRequest]) (*connect.Response[catalogv1.PostMovieEditionKindResponse], error) {
