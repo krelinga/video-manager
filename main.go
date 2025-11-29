@@ -6,6 +6,7 @@ import (
 
 	"github.com/krelinga/video-manager/internal/lib/config"
 	"github.com/krelinga/video-manager/internal/lib/migrate"
+	"github.com/krelinga/video-manager/internal/services/catalog"
 	"github.com/krelinga/video-manager/internal/services/disc"
 
 	"golang.org/x/net/http2"
@@ -26,6 +27,12 @@ func main() {
 	if err := migrate.Migrate(config.Postgres); err != nil {
 		fmt.Printf("Database migration error: %v\n", err)
 		return
+	}
+
+	if config.RunCatalogService {
+		// Initialize and register Catalog service
+		catalogHandler := &catalog.CatalogServiceHandler{Config: config}
+		mux.Handle(catalog.NewServiceHandler(catalogHandler))
 	}
 
 	if config.RunDiscService {

@@ -22,10 +22,11 @@ const (
 )
 
 type Config struct {
-	DiscInboxDir   string
-	HttpPort       int
-	RunDiscService bool
-	Postgres  *Postgres
+	DiscInboxDir      string
+	HttpPort          int
+	RunDiscService    bool
+	RunCatalogService bool
+	Postgres          *Postgres
 }
 
 type Postgres struct {
@@ -49,9 +50,10 @@ func (p *Postgres) URL() string {
 func New() *Config {
 	return &Config{
 		// TODO: make these configurable.
-		DiscInboxDir:   "/nas/media/video-manager/disc/inbox",
-		HttpPort:       25009,
-		RunDiscService: true,
+		DiscInboxDir:      "/nas/media/video-manager/disc/inbox",
+		HttpPort:          25009,
+		RunDiscService:    true,
+		RunCatalogService: true,
 		Postgres: &Postgres{
 			Host:     getRequiredVar(EnvPostgresHost),
 			Port:     parseInt(getVarWithDefault(EnvPostgresPort, "5432")),

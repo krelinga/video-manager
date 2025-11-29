@@ -1,7 +1,7 @@
-buf.build/gen/go/krelinga/proto/connectrpc/go v1.19.1-20251116064153-1bb37e38d2c4.2 h1:Kd6Jyv08MxS2x//fLi6YAq/b9V7rXqK6UcHm32fzt9Y=
-buf.build/gen/go/krelinga/proto/connectrpc/go v1.19.1-20251116064153-1bb37e38d2c4.2/go.mod h1:u1wYv7y1qTTK39NGklHULyTRshwUBZPIMhzd694ImYs=
-buf.build/gen/go/krelinga/proto/protocolbuffers/go v1.36.10-20251116064153-1bb37e38d2c4.1 h1:qOhrfT0Izbhflr8Ms/huR4oH6CNvP/wApw0uXqHPJFQ=
-buf.build/gen/go/krelinga/proto/protocolbuffers/go v1.36.10-20251116064153-1bb37e38d2c4.1/go.mod h1:USn73yYHsfvuBPTzJWyLFxoHYfOBY55+FXLfT6h0Nm8=
+buf.build/gen/go/krelinga/proto/connectrpc/go v1.19.1-20251129021456-046077ee146b.2 h1:NsbgrFz9Hwxu399qxYx/l4wXtpID5RqbjFQnSw4wPbU=
+buf.build/gen/go/krelinga/proto/connectrpc/go v1.19.1-20251129021456-046077ee146b.2/go.mod h1:Lg9RR5Qvlw0ci22T7k7nW+JFICnIFjub9auNo8IVaC8=
+buf.build/gen/go/krelinga/proto/protocolbuffers/go v1.36.10-20251129021456-046077ee146b.1 h1:zw5IlmVG6NW+4xqGhxZKSNXQMBPE0MOyiLN37gDQUCA=
+buf.build/gen/go/krelinga/proto/protocolbuffers/go v1.36.10-20251129021456-046077ee146b.1/go.mod h1:USn73yYHsfvuBPTzJWyLFxoHYfOBY55+FXLfT6h0Nm8=
 connectrpc.com/connect v1.19.1 h1:R5M57z05+90EfEvCY1b7hBxDVOUl45PrtXtAV2fOC14=
 connectrpc.com/connect v1.19.1/go.mod h1:tN20fjdGlewnSFeZxLKb0xwIZ6ozc3OQs2hTXy4du9w=
 dario.cat/mergo v1.0.2 h1:85+piFYR1tMbRrLcDwR18y4UKJ3aH1Tbzi24VRW1TK8=
