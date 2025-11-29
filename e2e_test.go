@@ -103,22 +103,26 @@ func TestEndToEnd(t *testing.T) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	// Print logs from the video manager container
-	logs, err := videoManagerContainer.Logs(ctx)
-	if err != nil {
-		t.Fatalf("failed to get video manager container logs: %v", err)
-	}
-	defer logs.Close()
 
-	// Read and log the container output
-	buf := make([]byte, 1024)
-	for {
-		n, err := logs.Read(buf)
-		if n > 0 {
-			t.Logf("video manager container: %s", string(buf[:n]))
-		}
+	// Grab the logs when this test function ends.
+	defer func() {
+		// Print logs from the video manager container
+		logs, err := videoManagerContainer.Logs(ctx)
 		if err != nil {
-			break
+			t.Fatalf("failed to get video manager container logs: %v", err)
 		}
-	}
+		defer logs.Close()
+
+		// Read and log the container output
+		buf := make([]byte, 1024)
+		for {
+			n, err := logs.Read(buf)
+			if n > 0 {
+				t.Logf("video manager container: %s", string(buf[:n]))
+			}
+			if err != nil {
+				break
+			}
+		}
+	}()
 }
