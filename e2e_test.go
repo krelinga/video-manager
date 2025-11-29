@@ -12,9 +12,9 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-// TestBinaryStartsWithPostgres verifies that the video-manager binary can start successfully
+// TestEndToEnd verifies that the video-manager binary can start successfully
 // with a PostgreSQL database connection configured via environment variables.
-func TestBinaryStartsWithPostgres(t *testing.T) {
+func TestEndToEnd(t *testing.T) {
 	ctx := context.Background()
 	if deadline, ok := t.Deadline(); ok {
 		timeRemaining := time.Until(deadline)
