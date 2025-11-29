@@ -15,7 +15,6 @@ import (
 	"github.com/krelinga/go-libs/deep"
 	"github.com/krelinga/go-libs/exam"
 	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/network"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
@@ -42,12 +41,6 @@ func TestEndToEnd(t *testing.T) {
 		}
 	})
 
-	// Create a network for the containers
-	net, err := network.New(ctx)
-	if err != nil {
-		t.Fatalf("failed to create network: %v", err)
-	}
-
 	// Set up PostgreSQL test container
 	postgresPassword := "testpassword"
 	postgresUser := "testuser"
@@ -62,7 +55,6 @@ func TestEndToEnd(t *testing.T) {
 			"POSTGRES_PASSWORD": postgresPassword,
 			"POSTGRES_DB":       postgresDB,
 		},
-		Networks:   []string{net.Name},
 		WaitingFor: wait.ForLog("database system is ready to accept connections").WithOccurrence(2),
 	}
 
@@ -99,7 +91,6 @@ func TestEndToEnd(t *testing.T) {
 			"VIDEO_MANAGER_POSTGRES_USER":     postgresUser,
 			"VIDEO_MANAGER_POSTGRES_PASSWORD": postgresPassword,
 		},
-		Networks:   []string{net.Name},
 		WaitingFor: wait.ForHTTP("/health").WithPort("25009/tcp"),
 	}
 
