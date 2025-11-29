@@ -31,11 +31,18 @@ func (s *CatalogServiceHandler) PostMovieEditionKind(ctx context.Context, req *c
 		return nil, connect.NewError(connect.CodeAlreadyExists, fmt.Errorf("movie edition kind with name %q already exists", req.Msg.Name))
 	}
 
-	// TODO: handle is_default
+	if req.Msg.IsDefault {
+		const unsetDefaultQuery = "UPDATE movie_edition_kinds SET is_default = FALSE WHERE is_default = TRUE"
+		_, err = txn.Exec(ctx, unsetDefaultQuery)
+		if err != nil {
+			err = fmt.Errorf("failed to unset existing default movie edition kind: %w", err)
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+	}
 
 	var id uint32
-	const insertQuery = "INSERT INTO movie_edition_kinds (name) VALUES ($1) RETURNING id"
-	err = txn.QueryRow(ctx, insertQuery, req.Msg.Name).Scan(&id)
+	const insertQuery = "INSERT INTO movie_edition_kinds (name, is_default) VALUES ($1, $2) RETURNING id"
+	err = txn.QueryRow(ctx, insertQuery, req.Msg.Name, req.Msg.IsDefault).Scan(&id)
 	if err != nil {
 		err = fmt.Errorf("failed to insert movie edition kind: %w", err)
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -50,7 +57,7 @@ func (s *CatalogServiceHandler) PostMovieEditionKind(ctx context.Context, req *c
 		MovieEditionKind: &catalogv1.MovieEditionKind{
 			Id:        id,
 			Name:      req.Msg.Name,
-			// IsDefault: req.Msg.IsDefault,  TODO: handle is_default
+			IsDefault: req.Msg.IsDefault,
 		},
 	})
 	return response, nil
