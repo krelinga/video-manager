@@ -31,7 +31,7 @@ func (s *CatalogServiceHandler) PutMovieEditionKind(ctx context.Context, req *co
 	defer txn.Rollback(ctx)
 
 	if req.Msg.MovieEditionKind.IsDefault {
-		const unsetDefaultQuery = "UPDATE movie_edition_kinds SET is_default = FALSE WHERE is_default = TRUE"
+		const unsetDefaultQuery = "UPDATE catalog_movie_edition_kinds SET is_default = FALSE WHERE is_default = TRUE"
 		_, err = txn.Exec(ctx, unsetDefaultQuery)
 		if err != nil {
 			err = fmt.Errorf("failed to unset existing default movie edition kind: %w", err)
@@ -39,7 +39,7 @@ func (s *CatalogServiceHandler) PutMovieEditionKind(ctx context.Context, req *co
 		}
 	}
 
-	const updateQuery = "UPDATE movie_edition_kinds SET name = $1, is_default = $2 WHERE id = $3"
+	const updateQuery = "UPDATE catalog_movie_edition_kinds SET name = $1, is_default = $2 WHERE id = $3"
 	result, err := txn.Exec(ctx, updateQuery, req.Msg.MovieEditionKind.Name, req.Msg.MovieEditionKind.IsDefault, req.Msg.MovieEditionKind.Id)
 	if err != nil {
 		err = fmt.Errorf("failed to update movie edition kind: %w", err)

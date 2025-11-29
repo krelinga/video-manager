@@ -20,7 +20,7 @@ func (s *CatalogServiceHandler) PostMovieEditionKind(ctx context.Context, req *c
 	}
 	defer txn.Rollback(ctx)
 
-	const nameQuery = "SELECT COUNT(*) FROM movie_edition_kinds WHERE LOWER(name) = LOWER($1)"
+	const nameQuery = "SELECT COUNT(*) FROM catalog_movie_edition_kinds WHERE LOWER(name) = LOWER($1)"
 	var count int
 	err = txn.QueryRow(ctx, nameQuery, req.Msg.Name).Scan(&count)
 	if err != nil {
@@ -32,7 +32,7 @@ func (s *CatalogServiceHandler) PostMovieEditionKind(ctx context.Context, req *c
 	}
 
 	if req.Msg.IsDefault {
-		const unsetDefaultQuery = "UPDATE movie_edition_kinds SET is_default = FALSE WHERE is_default = TRUE"
+		const unsetDefaultQuery = "UPDATE catalog_movie_edition_kinds SET is_default = FALSE WHERE is_default = TRUE"
 		_, err = txn.Exec(ctx, unsetDefaultQuery)
 		if err != nil {
 			err = fmt.Errorf("failed to unset existing default movie edition kind: %w", err)
@@ -41,7 +41,7 @@ func (s *CatalogServiceHandler) PostMovieEditionKind(ctx context.Context, req *c
 	}
 
 	var id uint32
-	const insertQuery = "INSERT INTO movie_edition_kinds (name, is_default) VALUES ($1, $2) RETURNING id"
+	const insertQuery = "INSERT INTO catalog_movie_edition_kinds (name, is_default) VALUES ($1, $2) RETURNING id"
 	err = txn.QueryRow(ctx, insertQuery, req.Msg.Name, req.Msg.IsDefault).Scan(&id)
 	if err != nil {
 		err = fmt.Errorf("failed to insert movie edition kind: %w", err)

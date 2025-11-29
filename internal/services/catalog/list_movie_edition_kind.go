@@ -20,7 +20,7 @@ func (s *CatalogServiceHandler) ListMovieEditionKind(ctx context.Context, req *c
 		Def:  50,
 		Max:  100,
 	}
-	const query = "SELECT id, name, is_default FROM movie_edition_kinds WHERE id > $1 ORDER BY id ASC LIMIT $2"
+	const query = "SELECT id, name, is_default FROM catalog_movie_edition_kinds WHERE id > $1 ORDER BY id ASC LIMIT $2"
 	rows, _ := s.DBPool.Query(ctx, query, lastSeenId, sizer.Size())
 	defer rows.Close()
 	var id uint32

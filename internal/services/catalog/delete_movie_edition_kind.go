@@ -22,7 +22,7 @@ func (s *CatalogServiceHandler) DeleteMovieEditionKind(ctx context.Context, req 
 	}
 	defer txn.Rollback(ctx)
 
-	const deleteQuery = "DELETE FROM movie_edition_kinds WHERE id = $1"
+	const deleteQuery = "DELETE FROM catalog_movie_edition_kinds WHERE id = $1"
 	result, err := txn.Exec(ctx, deleteQuery, req.Msg.Id)
 	if err != nil {
 		err = fmt.Errorf("failed to delete movie edition kind: %w", err)
