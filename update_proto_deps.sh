@@ -18,4 +18,5 @@ if ! git diff-index --quiet HEAD --; then
     git commit -m "Update protobuf dependencies."
 else
     echo "No changes in protobuf dependencies."
+    exit 1
 fi
