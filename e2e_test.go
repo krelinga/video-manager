@@ -14,6 +14,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/krelinga/go-libs/deep"
 	"github.com/krelinga/go-libs/exam"
+	"github.com/krelinga/video-manager/internal/lib/vmtest"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
@@ -21,7 +22,10 @@ import (
 // TestEndToEnd verifies that the video-manager binary can start successfully
 // with a PostgreSQL database connection configured via environment variables.
 func TestEndToEnd(t *testing.T) {
+	e := exam.New(t)
+	env := deep.NewEnv()
 	ctx := context.Background()
+
 	if deadline, ok := t.Deadline(); ok {
 		timeRemaining := time.Until(deadline)
 		t.Log("test deadline in", timeRemaining)
@@ -41,42 +45,8 @@ func TestEndToEnd(t *testing.T) {
 		}
 	})
 
-	// Set up PostgreSQL test container
-	postgresPassword := "testpassword"
-	postgresUser := "testuser"
-	postgresDB := "testdb"
-
-	postgresReq := testcontainers.ContainerRequest{
-		Image:        "postgres:17",
-		Hostname:     "postgres",
-		ExposedPorts: []string{"5432/tcp"},
-		Env: map[string]string{
-			"POSTGRES_USER":     postgresUser,
-			"POSTGRES_PASSWORD": postgresPassword,
-			"POSTGRES_DB":       postgresDB,
-		},
-		WaitingFor: wait.ForLog("database system is ready to accept connections").WithOccurrence(2),
-	}
-
-	postgresContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: postgresReq,
-		Started:          true,
-	})
-	if err != nil {
-		t.Fatalf("failed to start postgres container: %v", err)
-	}
-
-	// Get the PostgreSQL container's address
-	host, err := postgresContainer.Host(ctx)
-	if err != nil {
-		t.Fatalf("failed to get postgres container host: %v", err)
-	}
-
-	port, err := postgresContainer.MappedPort(ctx, "5432")
-	if err != nil {
-		t.Fatalf("failed to get postgres container port: %v", err)
-	}
-
+	pg := vmtest.PostgresOnce(e)
+	
 	// Build the binary using Docker
 	videoManagerReq := testcontainers.ContainerRequest{
 		FromDockerfile: testcontainers.FromDockerfile{
@@ -85,11 +55,11 @@ func TestEndToEnd(t *testing.T) {
 		},
 		ExposedPorts: []string{"25009/tcp"},
 		Env: map[string]string{
-			"VIDEO_MANAGER_POSTGRES_HOST":     host,
-			"VIDEO_MANAGER_POSTGRES_PORT":     port.Port(),
-			"VIDEO_MANAGER_POSTGRES_DBNAME":   postgresDB,
-			"VIDEO_MANAGER_POSTGRES_USER":     postgresUser,
-			"VIDEO_MANAGER_POSTGRES_PASSWORD": postgresPassword,
+			"VIDEO_MANAGER_POSTGRES_HOST":     pg.Host(),
+			"VIDEO_MANAGER_POSTGRES_PORT":     pg.PortString(),
+			"VIDEO_MANAGER_POSTGRES_DBNAME":   pg.DBName(),
+			"VIDEO_MANAGER_POSTGRES_USER":     pg.User(),
+			"VIDEO_MANAGER_POSTGRES_PASSWORD": pg.Password(),
 		},
 		WaitingFor: wait.ForHTTP("/health").WithPort("25009/tcp"),
 	}
@@ -134,8 +104,7 @@ func TestEndToEnd(t *testing.T) {
 		}
 	}()
 
-	e := exam.New(t)
-	env := deep.NewEnv()
+	
 	vsConString := fmt.Sprintf("http://%s:%s", vcHost, vcPort.Port())
 
 	e.Run("catalog", func(e exam.E) {
