@@ -3,7 +3,7 @@ module github.com/krelinga/video-manager
 go 1.24.9
 
 require (
-	buf.build/gen/go/krelinga/proto/connectrpc/go v1.19.1-20251129060416-a90504e0f3fa.2
+	buf.build/gen/go/krelinga/proto/connectrpc/go v1.19.1-20251129193243-ab3e6c485c4a.2
 	buf.build/gen/go/krelinga/proto/protocolbuffers/go v1.36.10-20251129193243-ab3e6c485c4a.1
 	connectrpc.com/connect v1.19.1
 	github.com/golang-migrate/migrate/v4 v4.19.0
