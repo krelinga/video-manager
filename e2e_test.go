@@ -28,12 +28,12 @@ func TestBinaryStartsWithPostgres(t *testing.T) {
 
 	// Docker multistage builds leave unnamed images behind by default, this cleans them up.
 	// This only works because we labeled the builder stage in the Dockerfile.
-	defer func() {
+	t.Cleanup(func() {
 		cmd := exec.Command("docker", "image", "prune", "--filter", "label=stage=builder", "-f")
 		if err := cmd.Run(); err != nil {
 			t.Fatalf("failed to prune docker images: %v", err)
 		}
-	}()
+	})
 
 	// Create a network for the containers
 	net, err := network.New(ctx)
