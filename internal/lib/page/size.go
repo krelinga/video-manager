@@ -16,3 +16,5 @@ func (s *Sizer) Size() uint32 {
 		return s.Def
 	}
 }
+
+type Limit = Sizer
