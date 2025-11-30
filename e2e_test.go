@@ -27,10 +27,10 @@ func TestEndToEnd(t *testing.T) {
 
 	// Docker multistage builds leave unnamed images behind by default, this cleans them up.
 	// This only works because we labeled the builder stage in the Dockerfile.
-	t.Cleanup(func() {
+	e.Cleanup(func() {
 		cmd := exec.Command("docker", "image", "prune", "--filter", "label=stage=builder", "-f")
 		if err := cmd.Run(); err != nil {
-			t.Fatalf("failed to prune docker images: %v", err)
+			e.Fatalf("failed to prune docker images: %v", err)
 		}
 	})
 
@@ -63,12 +63,12 @@ func TestEndToEnd(t *testing.T) {
 
 	vcHost, err := videoManagerContainer.Host(ctx)
 	if err != nil {
-		t.Fatalf("failed to get video manager container host: %v", err)
+		e.Fatalf("failed to get video manager container host: %v", err)
 	}
 
 	vcPort, err := videoManagerContainer.MappedPort(ctx, "25009")
 	if err != nil {
-		t.Fatalf("failed to get video manager container port: %v", err)
+		e.Fatalf("failed to get video manager container port: %v", err)
 	}
 
 	// Grab the logs when this test function ends.
@@ -76,7 +76,7 @@ func TestEndToEnd(t *testing.T) {
 		// Print logs from the video manager container
 		logs, err := videoManagerContainer.Logs(ctx)
 		if err != nil {
-			t.Fatalf("failed to get video manager container logs: %v", err)
+			e.Fatalf("failed to get video manager container logs: %v", err)
 		}
 		defer logs.Close()
 
@@ -85,7 +85,7 @@ func TestEndToEnd(t *testing.T) {
 		for {
 			n, err := logs.Read(buf)
 			if n > 0 {
-				t.Logf("video manager container: %s", string(buf[:n]))
+				e.Logf("video manager container: %s", string(buf[:n]))
 			}
 			if err != nil {
 				break
@@ -108,5 +108,4 @@ func TestEndToEnd(t *testing.T) {
 			})
 		})
 	})
-
 }
