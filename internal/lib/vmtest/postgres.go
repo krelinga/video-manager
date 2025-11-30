@@ -21,6 +21,8 @@ type Postgres struct {
 	user     string
 	password string
 	dbName   string
+	pool     *pgxpool.Pool
+	poolOnce sync.Once
 }
 
 func (p *Postgres) Host() string {
@@ -69,18 +71,20 @@ func (p *Postgres) Config() *config.Postgres {
 
 func (p *Postgres) Pool(e exam.E) *pgxpool.Pool {
 	e.Helper()
-	ctx := context.Background()
-	pool, err := pgxpool.New(ctx, p.URL())
-	if err != nil {
-		e.Fatalf("failed to create pgx pool: %v", err)
-	}
-	return pool
+	p.poolOnce.Do(func() {
+		ctx := context.Background()
+		pool, err := pgxpool.New(ctx, p.URL())
+		if err != nil {
+			e.Fatalf("failed to create pgx pool: %v", err)
+		}
+		p.pool = pool
+	})
+	return p.pool
 }
 
 func (p *Postgres) Reset(e exam.E) {
 	e.Helper()
 	pool := p.Pool(e)
-	defer pool.Close()
 	ctx := context.Background()
 
 	txn, err := pool.Begin(ctx)
