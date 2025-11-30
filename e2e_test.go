@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os/exec"
 	"testing"
-	"time"
 
 	"buf.build/gen/go/krelinga/proto/connectrpc/go/krelinga/video_manager/catalog/v1/catalogv1connect"
 	catalogv1 "buf.build/gen/go/krelinga/proto/protocolbuffers/go/krelinga/video_manager/catalog/v1"
@@ -25,16 +24,6 @@ func TestEndToEnd(t *testing.T) {
 	e := exam.New(t)
 	env := deep.NewEnv()
 	ctx := context.Background()
-
-	if deadline, ok := t.Deadline(); ok {
-		timeRemaining := time.Until(deadline)
-		t.Log("test deadline in", timeRemaining)
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, timeRemaining)
-		defer cancel()
-	} else {
-		t.Log("no test deadline set")
-	}
 
 	// Docker multistage builds leave unnamed images behind by default, this cleans them up.
 	// This only works because we labeled the builder stage in the Dockerfile.
