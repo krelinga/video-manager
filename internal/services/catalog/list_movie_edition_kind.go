@@ -45,7 +45,8 @@ func (s *CatalogServiceHandler) ListMovieEditionKind(ctx context.Context, req *c
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	if more {
-		response.Msg.NextPageToken = page.FromLastSeenId(id)
+		lastSeenId := response.Msg.MovieEditionKinds[len(response.Msg.MovieEditionKinds)-1].Id
+		response.Msg.NextPageToken = page.FromLastSeenId(lastSeenId)
 	}
 	return response, nil
 }
