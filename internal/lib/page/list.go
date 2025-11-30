@@ -83,7 +83,7 @@ func List[T any](opts *ListOpts) iter.Seq[*T] {
 		*opts.Err = err
 		return func(yield func(*T) bool) {}
 	}
-	limit := opts.Limit.Size() + 1 // Grab one more to see if there are more rows
+	limit := opts.Limit.Limit() + 1 // Grab one more to see if there are more rows
 
 	params := opts.Params
 	if params == nil {
@@ -114,7 +114,7 @@ func List[T any](opts *ListOpts) iter.Seq[*T] {
 		var lastId uint32
 		for rows.Next() {
 			count++
-			if count > opts.Limit.Size() {
+			if count > opts.Limit.Limit() {
 				*opts.NextPageToken = FromLastSeenId(lastId)
 				return
 			}

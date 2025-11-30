@@ -1,12 +1,12 @@
 package page
 
-type Sizer struct {
+type Limit struct {
 	Want uint32
 	Def  uint32
 	Max  uint32
 }
 
-func (s *Sizer) Size() uint32 {
+func (s *Limit) Limit() uint32 {
 	if s.Want != 0 {
 		return min(s.Want, s.Max)
 	} else {
@@ -16,5 +16,3 @@ func (s *Sizer) Size() uint32 {
 		return s.Def
 	}
 }
-
-type Limit = Sizer
