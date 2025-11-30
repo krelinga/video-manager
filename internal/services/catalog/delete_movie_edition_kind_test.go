@@ -55,6 +55,14 @@ func TestDeleteMovieEditionKind(t *testing.T) {
 			},
 			errMatcher: vmtest.ConnectCode(connect.CodeNotFound),
 		},
+		{
+			loc:  exam.Here(),
+			name: "returns invalid argument for zero id",
+			setup: func(e exam.E) uint32 {
+				return 0
+			},
+			errMatcher: vmtest.ConnectCode(connect.CodeInvalidArgument),
+		},
 	}
 	for _, tt := range tests {
 		e.Run(tt.name, func(e exam.E) {
