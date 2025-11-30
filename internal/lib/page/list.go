@@ -25,11 +25,11 @@ type ListOpts struct {
 	SQL           string
 	Limit         *Limit
 	Err           *error
+	PageToken     *string
 	NextPageToken *string
 
 	// Optional
-	PageToken string
-	Params    map[string]any
+	Params map[string]any
 }
 
 func List[T any](opts *ListOpts) iter.Seq[*T] {
@@ -74,11 +74,14 @@ func List[T any](opts *ListOpts) iter.Seq[*T] {
 	if opts.Err == nil {
 		panic(fmt.Errorf("%w: error pointer is required", ErrListOpts))
 	}
+	if opts.PageToken == nil {
+		panic(fmt.Errorf("%w: page token pointer is required", ErrListOpts))
+	}
 	if opts.NextPageToken == nil {
 		panic(fmt.Errorf("%w: next page token pointer is required", ErrListOpts))
 	}
 
-	lastSeenId, err := ToLastSeenId(opts.PageToken)
+	lastSeenId, err := ToLastSeenId(*opts.PageToken)
 	if err != nil {
 		*opts.Err = err
 		return func(yield func(*T) bool) {}

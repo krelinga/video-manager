@@ -22,7 +22,7 @@ func (s *CatalogServiceHandler) ListMovieEditionKind(ctx context.Context, req *c
 		Ctx: ctx,
 		Queryer: s.DBPool,
 		SQL: sql,
-		PageToken: req.Msg.PageToken,
+		PageToken: &req.Msg.PageToken,
 		Limit: &page.Limit{
 			Want: req.Msg.PageSize,
 			Def:  50,
