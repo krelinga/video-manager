@@ -2,11 +2,9 @@ package catalog
 
 import (
 	"context"
-	"fmt"
 
 	catalogv1 "buf.build/gen/go/krelinga/proto/protocolbuffers/go/krelinga/video_manager/catalog/v1"
 	"connectrpc.com/connect"
-	"github.com/jackc/pgx/v5"
 	"github.com/krelinga/video-manager/internal/lib/page"
 )
 
@@ -20,20 +18,18 @@ func (s *CatalogServiceHandler) ListMovieEditionKind(ctx context.Context, req *c
 		Def:  50,
 		Max:  100,
 	}
-	const query = "SELECT id, name, is_default FROM catalog_movie_edition_kinds WHERE id > $1 ORDER BY id ASC LIMIT $2"
-	rows, _ := s.DBPool.Query(ctx, query, lastSeenId, sizer.Size() + 1)
-	defer rows.Close()
-	var id uint32
-	var name string
-	var isDefault bool
-	var more bool
-	response := connect.NewResponse(&catalogv1.ListMovieEditionKindResponse{})
-	_, err = pgx.ForEachRow(rows, []any{&id, &name, &isDefault}, func() error {
-		if len(response.Msg.MovieEditionKinds) == int(sizer.Size()) {
-			more = true
-			return nil
+	resp := connect.NewResponse(&catalogv1.ListMovieEditionKindResponse{})
+	nextPageToken, err := page.List(ctx, s.DBPool, page.ListQuery{
+		Fields: []page.Unsafe{"id", "name", "is_default"},
+		Table:  "catalog_movie_edition_kinds",
+	}, lastSeenId, sizer.Size(), func(scanner page.Scanner) error {
+		var id uint32
+		var name string
+		var isDefault bool
+		if err := scanner.Scan(&id, &name, &isDefault); err != nil {
+			return err
 		}
-		response.Msg.MovieEditionKinds = append(response.Msg.MovieEditionKinds, &catalogv1.MovieEditionKind{
+		resp.Msg.MovieEditionKinds = append(resp.Msg.MovieEditionKinds, &catalogv1.MovieEditionKind{
 			Id:        id,
 			Name:      name,
 			IsDefault: isDefault,
@@ -41,12 +37,8 @@ func (s *CatalogServiceHandler) ListMovieEditionKind(ctx context.Context, req *c
 		return nil
 	})
 	if err != nil {
-		err = fmt.Errorf("failed to query movie edition kinds: %w", err)
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	if more {
-		lastSeenId := response.Msg.MovieEditionKinds[len(response.Msg.MovieEditionKinds)-1].Id
-		response.Msg.NextPageToken = page.FromLastSeenId(lastSeenId)
-	}
-	return response, nil
+	resp.Msg.NextPageToken = nextPageToken
+	return resp, nil
 }
