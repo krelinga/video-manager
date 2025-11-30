@@ -14,10 +14,6 @@ type Queryer interface {
 	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
 }
 
-type Scanner interface {
-	Scan(dest ...any) error
-}
-
 type ListOpts struct {
 	// Required
 	Ctx           context.Context
