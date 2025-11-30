@@ -9,15 +9,14 @@ import (
 	"github.com/krelinga/video-manager/internal/lib/page"
 )
 
-func (s *CatalogServiceHandler) ListMovieEditionKind(ctx context.Context, req *connect.Request[catalogv1.ListMovieEditionKindRequest]) (*connect.Response[catalogv1.ListMovieEditionKindResponse], error) {
+func (s *CatalogServiceHandler) ListMovieEditionKind(ctx context.Context, req *connect.Request[catalogv1.ListMovieEditionKindRequest]) (resp *connect.Response[catalogv1.ListMovieEditionKindResponse], err error) {
 	const sql = "SELECT id, name, is_default FROM catalog_movie_edition_kinds WHERE id > @lastSeenId ORDER BY id ASC LIMIT @limit;"
 	type row struct {
 		Id        uint32 `db:"id"`
 		Name      string `db:"name"`
 		IsDefault bool   `db:"is_default"`
 	}
-	resp := connect.NewResponse(&catalogv1.ListMovieEditionKindResponse{})
-	var err error
+	resp = connect.NewResponse(&catalogv1.ListMovieEditionKindResponse{})
 	listOpts := &page.ListOpts{
 		Ctx: ctx,
 		Queryer: s.DBPool,
@@ -40,9 +39,11 @@ func (s *CatalogServiceHandler) ListMovieEditionKind(ctx context.Context, req *c
 	}
 	if errors.Is(err, page.ErrUnmarshal) {
 		err = errors.New("invalid page token")
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		err = connect.NewError(connect.CodeInvalidArgument, err)
+		resp = nil
 	} else if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		err = connect.NewError(connect.CodeInternal, err)
+		resp = nil
 	}
-	return resp, nil
+	return
 }
