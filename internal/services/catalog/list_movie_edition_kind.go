@@ -6,6 +6,7 @@ import (
 	catalogv1 "buf.build/gen/go/krelinga/proto/protocolbuffers/go/krelinga/video_manager/catalog/v1"
 	"connectrpc.com/connect"
 	"github.com/krelinga/video-manager/internal/lib/page"
+	"google.golang.org/protobuf/proto"
 )
 
 func (s *CatalogServiceHandler) ListMovieEditionKind(ctx context.Context, req *connect.Request[catalogv1.ListMovieEditionKindRequest]) (resp *connect.Response[catalogv1.ListMovieEditionKindResponse], err error) {
@@ -32,9 +33,9 @@ func (s *CatalogServiceHandler) ListMovieEditionKind(ctx context.Context, req *c
 	}
 	for r := range page.List[row](listOpts) {
 		resp.Msg.MovieEditionKinds = append(resp.Msg.MovieEditionKinds, &catalogv1.MovieEditionKind{
-			Id:        r.Id,
-			Name:      r.Name,
-			IsDefault: r.IsDefault,
+			Id:        proto.Uint32(r.Id),
+			Name:      proto.String(r.Name),
+			IsDefault: proto.Bool(r.IsDefault),
 		})
 	}
 	return

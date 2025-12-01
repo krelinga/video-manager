@@ -22,8 +22,8 @@ type ListOpts struct {
 	SQL           string
 	Limit         *Limit
 	Err           *error
-	PageToken     *string
-	NextPageToken *string
+	PageToken     **string
+	NextPageToken **string
 
 	// Optional
 	Params map[string]any
@@ -115,7 +115,8 @@ func List[T any](opts *ListOpts) iter.Seq[*T] {
 		for rows.Next() {
 			count++
 			if count > opts.Limit.Limit() {
-				*opts.NextPageToken = fromLastSeenId(lastId)
+				*opts.NextPageToken = new(string)
+				**opts.NextPageToken = fromLastSeenId(lastId)
 				return
 			}
 			row, err := pgx.RowToAddrOfStructByName[T](rows)

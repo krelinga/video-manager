@@ -19,7 +19,7 @@ type DeleteOpts struct {
 	Ctx    context.Context
 	Execer Execer
 	SQL    string
-	Id     *uint32
+	Id     **uint32
 	Err    *error
 
 	// Optional
@@ -43,7 +43,7 @@ func Delete(opts *DeleteOpts) {
 		panic(fmt.Errorf("%w: SQL must contain an '@id' parameter", ErrOpts))
 	}
 
-	if *opts.Id == 0 {
+	if **opts.Id == 0 {
 		*opts.Err = connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("id is a required field"))
 		return
 	}
@@ -56,7 +56,7 @@ func Delete(opts *DeleteOpts) {
 	if found {
 		panic(fmt.Errorf("%w: 'id' parameter is reserved", ErrOpts))
 	}
-	params["id"] = *opts.Id
+	params["id"] = **opts.Id
 
 	ct, err := opts.Execer.Exec(opts.Ctx, opts.SQL, pgx.NamedArgs(params))
 	if err != nil {

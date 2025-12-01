@@ -27,11 +27,11 @@ func fromLastSeenId(lastSeenId uint32) string {
 	return base64.StdEncoding.EncodeToString(pageBytes)
 }
 
-func toLastSeenId(pageStr string) (uint32, error) {
-	if pageStr == "" {
+func toLastSeenId(pageStr *string) (uint32, error) {
+	if pageStr == nil {
 		return 0, nil
 	}
-	pageBytes, err := base64.StdEncoding.DecodeString(pageStr)
+	pageBytes, err := base64.StdEncoding.DecodeString(*pageStr)
 	if err != nil {
 		return 0, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("could not decode base64 data: %w", err))
 	}

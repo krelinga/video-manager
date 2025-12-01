@@ -10,6 +10,7 @@ import (
 	"github.com/krelinga/go-libs/exam"
 	"github.com/krelinga/go-libs/match"
 	"github.com/krelinga/video-manager/internal/lib/vmtest"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestListMovieEditionKind(t *testing.T) {
@@ -32,7 +33,7 @@ func TestListMovieEditionKind(t *testing.T) {
 		defer pg.Reset(e)
 		// Create a movie edition kind
 		postReq := connect.NewRequest(&catalogv1.PostMovieEditionKindRequest{
-			Name: "Director's Cut",
+			Name: proto.String("Director's Cut"),
 		})
 		postResp, err := handler.PostMovieEditionKind(ctx, postReq)
 		exam.Nil(e, env, err).Log(err).Must()
@@ -55,7 +56,7 @@ func TestListMovieEditionKind(t *testing.T) {
 		names := []string{"Standard", "Extended", "Collector's Edition"}
 		for _, name := range names {
 			postReq := connect.NewRequest(&catalogv1.PostMovieEditionKindRequest{
-				Name: name,
+				Name: proto.String(name),
 			})
 			_, err := handler.PostMovieEditionKind(ctx, postReq)
 			exam.Nil(e, env, err).Log(err).Must()
@@ -63,7 +64,7 @@ func TestListMovieEditionKind(t *testing.T) {
 
 		// List with page size 2
 		listReq := connect.NewRequest(&catalogv1.ListMovieEditionKindRequest{
-			PageSize: 2,
+			PageSize: proto.Uint32(2),
 		})
 		listResp, err := handler.ListMovieEditionKind(ctx, listReq)
 		e.Log("first response:", listResp.Msg)
@@ -74,23 +75,23 @@ func TestListMovieEditionKind(t *testing.T) {
 					Matchers: []match.Matcher{
 						match.Pointer(match.Struct{
 							Fields: map[deep.Field]match.Matcher{
-								deep.NamedField("Name"): match.Equal("Standard"),
+								deep.NamedField("Name"): match.Pointer(match.Equal("Standard")),
 							},
 						}),
 						match.Pointer(match.Struct{
 							Fields: map[deep.Field]match.Matcher{
-								deep.NamedField("Name"): match.Equal("Extended"),
+								deep.NamedField("Name"): match.Pointer(match.Equal("Extended")),
 							},
 						}),
 					},
 				},
-				deep.NamedField("NextPageToken"): match.NotEqual(""),
+				deep.NamedField("NextPageToken"): match.Pointer(match.NotEqual("")),
 			},
 		}))
 
 		// List the next page using the continuation token
 		nextListReq := connect.NewRequest(&catalogv1.ListMovieEditionKindRequest{
-			PageSize:  2,
+			PageSize:  proto.Uint32(2),
 			PageToken: listResp.Msg.NextPageToken,
 		})
 		nextListResp, err := handler.ListMovieEditionKind(ctx, nextListReq)
@@ -101,19 +102,19 @@ func TestListMovieEditionKind(t *testing.T) {
 					Matchers: []match.Matcher{
 						match.Pointer(match.Struct{
 							Fields: map[deep.Field]match.Matcher{
-								deep.NamedField("Name"): match.Equal("Collector's Edition"),
+								deep.NamedField("Name"): match.Pointer(match.Equal("Collector's Edition")),
 							},
 						}),
 					},
 				},
-				deep.NamedField("NextPageToken"): match.Equal(""),
+				deep.NamedField("NextPageToken"): match.Nil(),
 			},
 		})).Log(nextListResp.Msg)
 	})
 	e.Run("invalid page token", func(e exam.E) {
 		defer pg.Reset(e)
 		listReq := connect.NewRequest(&catalogv1.ListMovieEditionKindRequest{
-			PageToken: "invalid-token",
+			PageToken: proto.String("invalid-token"),
 		})
 		_, err := handler.ListMovieEditionKind(ctx, listReq)
 		exam.Match(e, env, err, vmtest.ConnectCode(connect.CodeInvalidArgument)).Log(err)

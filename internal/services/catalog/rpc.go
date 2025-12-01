@@ -28,7 +28,7 @@ func (s *CatalogServiceHandler) PostCard(ctx context.Context, req *connect.Reque
 	return nil, nil  // TODO
 }
 
-func (s *CatalogServiceHandler) PutCard(ctx context.Context, req *connect.Request[catalogv1.PutCardRequest]) (*connect.Response[catalogv1.PutCardResponse], error) {
+func (s *CatalogServiceHandler) PatchCard(ctx context.Context, req *connect.Request[catalogv1.PatchCardRequest]) (*connect.Response[catalogv1.PatchCardResponse], error) {
 	return nil, nil  // TODO
 }
 

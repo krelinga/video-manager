@@ -10,6 +10,7 @@ import (
 	"github.com/krelinga/go-libs/exam"
 	"github.com/krelinga/go-libs/match"
 	"github.com/krelinga/video-manager/internal/lib/vmtest"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestDeleteMovieEditionKind(t *testing.T) {
@@ -32,11 +33,12 @@ func TestDeleteMovieEditionKind(t *testing.T) {
 			name: "deletes existing movie edition kind",
 			setup: func(e exam.E) uint32 {
 				req := connect.NewRequest(&catalogv1.PostMovieEditionKindRequest{
-					Name: "foo",
+					Name: proto.String("foo"),
 				})
 				resp, err := handler.PostMovieEditionKind(ctx, req)
 				exam.Nil(e, env, err).Log(err).Must()
-				return resp.Msg.MovieEditionKind.Id
+				exam.NotNil(e, env, resp.Msg.MovieEditionKind).Log(resp.Msg).Must()
+				return *resp.Msg.MovieEditionKind.Id
 			},
 			errMatcher: match.Nil(),
 			check: func(e exam.E, id uint32) {
@@ -70,7 +72,7 @@ func TestDeleteMovieEditionKind(t *testing.T) {
 			e.Log(tt.loc)
 			id := tt.setup(e)
 			req := connect.NewRequest(&catalogv1.DeleteMovieEditionKindRequest{
-				Id: id,
+				Id: proto.Uint32(id),
 			})
 			_, err := handler.DeleteMovieEditionKind(ctx, req)
 			exam.Match(e, env, err, tt.errMatcher).Log(err)
