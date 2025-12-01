@@ -6,6 +6,6 @@ import "errors"
 var (
 	ErrMarshal = errors.New("failed to marshal page data")
 	ErrDefSize = errors.New("invalid default page size")
-	ErrListOpts = errors.New("invalid list options")
-	ErrListType = errors.New("invalid list type")
+	ErrOpts    = errors.New("invalid options")
+	ErrType    = errors.New("invalid type")
 )

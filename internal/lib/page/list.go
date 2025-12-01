@@ -32,50 +32,50 @@ type ListOpts struct {
 func List[T any](opts *ListOpts) iter.Seq[*T] {
 	t := reflect.TypeFor[T]()
 	if t.Kind() != reflect.Struct {
-		panic(fmt.Errorf("%w: T must be a struct type", ErrListType))
+		panic(fmt.Errorf("%w: T must be a struct type", ErrType))
 	}
 	var idFieldIndex []int
 	for _, field := range reflect.VisibleFields(t) {
 		tag := string(field.Tag)
 		if !strings.Contains(tag, "db:") {
-			panic(fmt.Errorf("%w: struct field %s must have a 'db' tag", ErrListType, field.Name))
+			panic(fmt.Errorf("%w: struct field %s must have a 'db' tag", ErrType, field.Name))
 		}
 		if strings.Contains(tag, `db:"id"`) {
 			if idFieldIndex != nil {
-				panic(fmt.Errorf("%w: struct type has multiple 'id' db tags", ErrListType))
+				panic(fmt.Errorf("%w: struct type has multiple 'id' db tags", ErrType))
 			}
 			idFieldIndex = field.Index
 		}
 	}
 	if idFieldIndex == nil {
-		panic(fmt.Errorf("%w: struct type must have a field with db tag 'id'", ErrListType))
+		panic(fmt.Errorf("%w: struct type must have a field with db tag 'id'", ErrType))
 	}
 	if opts.Ctx == nil {
-		panic(fmt.Errorf("%w: context is required", ErrListOpts))
+		panic(fmt.Errorf("%w: context is required", ErrOpts))
 	}
 	if opts.Queryer == nil {
-		panic(fmt.Errorf("%w: queryer is required", ErrListOpts))
+		panic(fmt.Errorf("%w: queryer is required", ErrOpts))
 	}
 	if opts.SQL == "" {
-		panic(fmt.Errorf("%w: SQL is required", ErrListOpts))
+		panic(fmt.Errorf("%w: SQL is required", ErrOpts))
 	}
 	if !strings.Contains(opts.SQL, "@lastSeenId") {
-		panic(fmt.Errorf("%w: SQL must contain @lastSeenId parameter", ErrListOpts))
+		panic(fmt.Errorf("%w: SQL must contain @lastSeenId parameter", ErrOpts))
 	}
 	if !strings.Contains(opts.SQL, "@limit") {
-		panic(fmt.Errorf("%w: SQL must contain @limit parameter", ErrListOpts))
+		panic(fmt.Errorf("%w: SQL must contain @limit parameter", ErrOpts))
 	}
 	if opts.Limit == nil {
-		panic(fmt.Errorf("%w: limit is required", ErrListOpts))
+		panic(fmt.Errorf("%w: limit is required", ErrOpts))
 	}
 	if opts.Err == nil {
-		panic(fmt.Errorf("%w: error pointer is required", ErrListOpts))
+		panic(fmt.Errorf("%w: error pointer is required", ErrOpts))
 	}
 	if opts.PageToken == nil {
-		panic(fmt.Errorf("%w: page token pointer is required", ErrListOpts))
+		panic(fmt.Errorf("%w: page token pointer is required", ErrOpts))
 	}
 	if opts.NextPageToken == nil {
-		panic(fmt.Errorf("%w: next page token pointer is required", ErrListOpts))
+		panic(fmt.Errorf("%w: next page token pointer is required", ErrOpts))
 	}
 
 	lastSeenId, err := toLastSeenId(*opts.PageToken)
@@ -90,10 +90,10 @@ func List[T any](opts *ListOpts) iter.Seq[*T] {
 		params = make(map[string]any)
 	}
 	if _, found := params["lastSeenId"]; found {
-		panic(fmt.Errorf("%w: lastSeenId parameter is reserved", ErrListOpts))
+		panic(fmt.Errorf("%w: lastSeenId parameter is reserved", ErrOpts))
 	}
 	if _, found := params["limit"]; found {
-		panic(fmt.Errorf("%w: limit parameter is reserved", ErrListOpts))
+		panic(fmt.Errorf("%w: limit parameter is reserved", ErrOpts))
 	}
 	params["lastSeenId"] = lastSeenId
 	params["limit"] = limit
