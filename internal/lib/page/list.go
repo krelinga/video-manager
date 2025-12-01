@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 
+	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -77,7 +78,7 @@ func List[T any](opts *ListOpts) iter.Seq[*T] {
 		panic(fmt.Errorf("%w: next page token pointer is required", ErrListOpts))
 	}
 
-	lastSeenId, err := ToLastSeenId(*opts.PageToken)
+	lastSeenId, err := toLastSeenId(*opts.PageToken)
 	if err != nil {
 		*opts.Err = err
 		return func(yield func(*T) bool) {}
@@ -100,13 +101,13 @@ func List[T any](opts *ListOpts) iter.Seq[*T] {
 	return func(yield func(*T) bool) {
 		rows, err := opts.Queryer.Query(opts.Ctx, opts.SQL, pgx.NamedArgs(params))
 		if err != nil {
-			*opts.Err = fmt.Errorf("%w: query failed: %w", ErrList, err)
+			*opts.Err = connect.NewError(connect.CodeInternal, fmt.Errorf("query failed: %w", err))
 			return
 		}
 		defer func() {
 			rows.Close()
 			if err := rows.Err(); err != nil && *opts.Err == nil {
-				*opts.Err = fmt.Errorf("%w: error reading query result rows: %w", ErrList, err)
+				*opts.Err = connect.NewError(connect.CodeInternal, fmt.Errorf("error reading query result rows: %w", err))
 			}
 		}()
 		count := uint32(0)
@@ -114,12 +115,12 @@ func List[T any](opts *ListOpts) iter.Seq[*T] {
 		for rows.Next() {
 			count++
 			if count > opts.Limit.Limit() {
-				*opts.NextPageToken = FromLastSeenId(lastId)
+				*opts.NextPageToken = fromLastSeenId(lastId)
 				return
 			}
 			row, err := pgx.RowToAddrOfStructByName[T](rows)
 			if err != nil {
-				*opts.Err = fmt.Errorf("%w: failed to scan row into struct: %w", ErrList, err)
+				*opts.Err = connect.NewError(connect.CodeInternal, fmt.Errorf("failed to scan row into struct: %w", err))
 				return
 			}
 			idVal := reflect.ValueOf(row).Elem().FieldByIndex(idFieldIndex)

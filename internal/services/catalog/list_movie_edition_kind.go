@@ -2,7 +2,6 @@ package catalog
 
 import (
 	"context"
-	"errors"
 
 	catalogv1 "buf.build/gen/go/krelinga/proto/protocolbuffers/go/krelinga/video_manager/catalog/v1"
 	"connectrpc.com/connect"
@@ -10,6 +9,7 @@ import (
 )
 
 func (s *CatalogServiceHandler) ListMovieEditionKind(ctx context.Context, req *connect.Request[catalogv1.ListMovieEditionKindRequest]) (resp *connect.Response[catalogv1.ListMovieEditionKindResponse], err error) {
+	defer page.ClearRespOnErr(err, &resp)
 	const sql = "SELECT id, name, is_default FROM catalog_movie_edition_kinds WHERE id > @lastSeenId ORDER BY id ASC LIMIT @limit;"
 	type row struct {
 		Id        uint32 `db:"id"`
@@ -36,14 +36,6 @@ func (s *CatalogServiceHandler) ListMovieEditionKind(ctx context.Context, req *c
 			Name:      r.Name,
 			IsDefault: r.IsDefault,
 		})
-	}
-	if errors.Is(err, page.ErrUnmarshal) {
-		err = errors.New("invalid page token")
-		err = connect.NewError(connect.CodeInvalidArgument, err)
-		resp = nil
-	} else if err != nil {
-		err = connect.NewError(connect.CodeInternal, err)
-		resp = nil
 	}
 	return
 }
