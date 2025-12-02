@@ -59,6 +59,7 @@ func TestPatchMovieEditionKind(t *testing.T) {
 				},
 			}),
 		},
+		// TODO: add more tests
 	}
 
 	for _, test := range tests {
