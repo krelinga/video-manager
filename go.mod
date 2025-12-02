@@ -4,7 +4,7 @@ go 1.24.9
 
 require (
 	buf.build/gen/go/krelinga/proto/connectrpc/go v1.19.1-20251201193619-85f788eca094.2
-	buf.build/gen/go/krelinga/proto/protocolbuffers/go v1.36.10-20251201193619-85f788eca094.1
+	buf.build/gen/go/krelinga/proto/protocolbuffers/go v1.36.10-20251202034006-36b4ac090dd2.1
 	connectrpc.com/connect v1.19.1
 	github.com/golang-migrate/migrate/v4 v4.19.0
 	github.com/jackc/pgx/v5 v5.5.4
