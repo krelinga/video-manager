@@ -17,7 +17,7 @@ func (s *CatalogServiceHandler) PatchMovieEditionKind(ctx context.Context, req *
 	} else {
 		id = *req.Msg.Id
 	}
-	
+
 	tx, err := s.Db.Begin(ctx)
 	if err != nil {
 		return nil, err
@@ -55,9 +55,17 @@ func (s *CatalogServiceHandler) PatchMovieEditionKind(ctx context.Context, req *
 		}
 	}
 
+	movieEditionKind, err := getMovieEditionKind(ctx, tx, id)
+	if err != nil {
+		return nil, err
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		return nil, err
 	}
 
-	return nil, nil // TODO: implement.
+	resp := connect.NewResponse(&catalogv1.PatchMovieEditionKindResponse{
+		MovieEditionKind: movieEditionKind,
+	})
+	return resp, nil
 }
