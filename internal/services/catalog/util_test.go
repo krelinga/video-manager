@@ -8,6 +8,6 @@ import (
 
 func NewCatalogServiceHandler(e exam.E, pg *vmtest.Postgres) *catalog.CatalogServiceHandler {
 	return &catalog.CatalogServiceHandler{
-		DBPool: pg.Pool(e),
+		Db: pg.DbRunner(e),
 	}
 }

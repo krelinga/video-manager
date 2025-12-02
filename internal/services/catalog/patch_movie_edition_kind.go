@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/krelinga/video-manager/internal/lib/vmdb"
 
 	catalogv1 "buf.build/gen/go/krelinga/proto/protocolbuffers/go/krelinga/video_manager/catalog/v1"
 	"connectrpc.com/connect"
@@ -18,51 +18,46 @@ func (s *CatalogServiceHandler) PatchMovieEditionKind(ctx context.Context, req *
 		id = *req.Msg.Id
 	}
 	
-	txn, err := s.DBPool.Begin(ctx)
+	tx, err := s.Db.Begin(ctx)
 	if err != nil {
-		err = fmt.Errorf("failed to begin transaction: %w", err)
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, err
 	}
-	defer txn.Rollback(ctx)
+	defer tx.Rollback(ctx)
 
 	for _, patch := range req.Msg.Patches {
-		var commandTag pgconn.CommandTag
+		var rowsAffected int
 		switch which := patch.WhichPatch(); which {
 		case catalogv1.MovieEditionKindPatch_Name_case:
 			const query = "UPDATE catalog_movie_edition_kinds SET name = $1 WHERE id = $2;"
-			commandTag, err = txn.Exec(ctx, query, patch.GetName(), id)
+			rowsAffected, err = vmdb.Exec(ctx, tx, vmdb.Positional(query, patch.GetName(), id))
 			if err != nil {
-				err = fmt.Errorf("failed to update name: %w", err)
-				return nil, connect.NewError(connect.CodeInternal, err)
+				return nil, fmt.Errorf("%w: failed to update name", err)
 			}
 		case catalogv1.MovieEditionKindPatch_IsDefault_case:
 			isDefault := patch.GetIsDefault()
 			if isDefault {
 				const query = "UPDATE catalog_movie_edition_kinds SET is_default = FALSE WHERE is_default = TRUE;"
-				commandTag, err = txn.Exec(ctx, query)
+				_, err = vmdb.Exec(ctx, tx, vmdb.Constant(query))
 				if err != nil {
-					err = fmt.Errorf("failed to unset existing default movie edition kind: %w", err)
-					return nil, connect.NewError(connect.CodeInternal, err)
+					return nil, fmt.Errorf("%w: failed to unset existing default movie edition kind", err)
 				}
 			}
 			const query = "UPDATE catalog_movie_edition_kinds SET is_default = $1 WHERE id = $2;"
-			_, err = txn.Exec(ctx, query, isDefault, id)
+			rowsAffected, err = vmdb.Exec(ctx, tx, vmdb.Positional(query, isDefault, id))
 			if err != nil {
-				err = fmt.Errorf("failed to update is_default: %w", err)
-				return nil, connect.NewError(connect.CodeInternal, err)
+				return nil, fmt.Errorf("%w: failed to update is_default", err)
 			}
 		default:
 			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unknown patch type: %v", which))
 		}
-		if commandTag.RowsAffected() == 0 {
+		if rowsAffected == 0 {
 			return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("movie edition kind with id %d not found", id))
 		}
 	}
 
-	if err := txn.Commit(ctx); err != nil {
-		err = fmt.Errorf("failed to commit transaction: %w", err)
-		return nil, connect.NewError(connect.CodeInternal, err)
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
 	}
 
-	return nil, nil  // TODO
+	return nil, nil // TODO: implement.
 }

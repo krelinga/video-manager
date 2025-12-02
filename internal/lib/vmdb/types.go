@@ -4,11 +4,12 @@ import (
 	"context"
 	"errors"
 
+	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-var Err = errors.New("database error")
+var Err = connect.NewError(connect.CodeInternal, errors.New("database error"))
 
 type Callback[T any] func(T) (wantMore bool)
 
@@ -30,4 +31,5 @@ type TxRunner interface {
 type DbRunner interface {
 	Runner
 	Begin(ctx context.Context) (TxRunner, error)
+	Close()
 }

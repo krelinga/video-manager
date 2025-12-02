@@ -6,6 +6,7 @@ import (
 
 	catalogv1 "buf.build/gen/go/krelinga/proto/protocolbuffers/go/krelinga/video_manager/catalog/v1"
 	"connectrpc.com/connect"
+	"github.com/krelinga/video-manager/internal/lib/vmdb"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -22,19 +23,16 @@ func (s *CatalogServiceHandler) PostMovieEditionKind(ctx context.Context, req *c
 		isDefault = *req.Msg.IsDefault
 	}
 
-	txn, err := s.DBPool.Begin(ctx)
+	tx, err := s.Db.Begin(ctx)
 	if err != nil {
-		err = fmt.Errorf("failed to begin transaction: %w", err)
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, err
 	}
-	defer txn.Rollback(ctx)
+	defer tx.Rollback(ctx)
 
 	const nameQuery = "SELECT COUNT(*) FROM catalog_movie_edition_kinds WHERE LOWER(name) = LOWER($1)"
-	var count int
-	err = txn.QueryRow(ctx, nameQuery, name).Scan(&count)
+	count, err := vmdb.QueryOne[int](ctx, tx, vmdb.Positional(nameQuery, name))
 	if err != nil {
-		err = fmt.Errorf("failed to check for existing movie edition kind name: %w", err)
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, fmt.Errorf("%w: failed to check for existing movie edition kind name", err)
 	}
 	if count > 0 {
 		return nil, connect.NewError(connect.CodeAlreadyExists, fmt.Errorf("movie edition kind with name %q already exists", name))
@@ -42,24 +40,20 @@ func (s *CatalogServiceHandler) PostMovieEditionKind(ctx context.Context, req *c
 
 	if isDefault {
 		const unsetDefaultQuery = "UPDATE catalog_movie_edition_kinds SET is_default = FALSE WHERE is_default = TRUE"
-		_, err = txn.Exec(ctx, unsetDefaultQuery)
+		_, err = vmdb.Exec(ctx, tx, vmdb.Constant(unsetDefaultQuery))
 		if err != nil {
-			err = fmt.Errorf("failed to unset existing default movie edition kind: %w", err)
-			return nil, connect.NewError(connect.CodeInternal, err)
+			return nil, fmt.Errorf("%w: failed to unset existing default movie edition kind", err)
 		}
 	}
 
-	var id uint32
 	const insertQuery = "INSERT INTO catalog_movie_edition_kinds (name, is_default) VALUES ($1, $2) RETURNING id"
-	err = txn.QueryRow(ctx, insertQuery, name, isDefault).Scan(&id)
+	id, err := vmdb.QueryOne[uint32](ctx, tx, vmdb.Positional(insertQuery, name, isDefault))
 	if err != nil {
-		err = fmt.Errorf("failed to insert movie edition kind: %w", err)
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, fmt.Errorf("%w: failed to insert new movie edition kind", err)
 	}
 
-	if err := txn.Commit(ctx); err != nil {
-		err = fmt.Errorf("failed to commit transaction: %w", err)
-		return nil, connect.NewError(connect.CodeInternal, err)
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
 	}
 
 	response := connect.NewResponse(&catalogv1.PostMovieEditionKindResponse{

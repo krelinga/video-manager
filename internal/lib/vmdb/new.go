@@ -32,6 +32,11 @@ func (p *pgxPoolDbRunner) Begin(ctx context.Context) (TxRunner, error) {
 	return pgxTxRunner{tx: tx}, nil
 }
 
+func (p *pgxPoolDbRunner) Close() {
+	asPool := (*pgxpool.Pool)(p)
+	asPool.Close()
+}
+
 type pgxTxRunner struct {
 	tx pgx.Tx
 }

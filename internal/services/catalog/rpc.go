@@ -7,13 +7,13 @@ import (
 	"buf.build/gen/go/krelinga/proto/connectrpc/go/krelinga/video_manager/catalog/v1/catalogv1connect"
 	catalogv1 "buf.build/gen/go/krelinga/proto/protocolbuffers/go/krelinga/video_manager/catalog/v1"
 	"connectrpc.com/connect"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/krelinga/video-manager/internal/lib/config"
+	"github.com/krelinga/video-manager/internal/lib/vmdb"
 )
 
 type CatalogServiceHandler struct {
 	Config *config.Config
-	DBPool *pgxpool.Pool
+	Db vmdb.DbRunner
 }
 
 func (s *CatalogServiceHandler) ListCard(ctx context.Context, req *connect.Request[catalogv1.ListCardRequest]) (*connect.Response[catalogv1.ListCardResponse], error) {

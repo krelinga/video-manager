@@ -1,18 +1,17 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 
 	"github.com/krelinga/video-manager/internal/lib/config"
 	"github.com/krelinga/video-manager/internal/lib/migrate"
+	"github.com/krelinga/video-manager/internal/lib/vmdb"
 	"github.com/krelinga/video-manager/internal/services/catalog"
 	"github.com/krelinga/video-manager/internal/services/disc"
 
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func main() {
@@ -26,12 +25,13 @@ func main() {
 	config := config.New()
 
 	// Create database connection pool.
-	dbpool, err := pgxpool.New(context.Background(), config.Postgres.URL())
+	
+	db, err := vmdb.New(config.Postgres.URL())
 	if err != nil {
 		fmt.Printf("Unable to connect to database: %v\n", err)
 		return
 	}
-	defer dbpool.Close()
+	defer db.Close()
 
 	// Handle any necessary DB migrations.
 	if err := migrate.Migrate(config.Postgres); err != nil {
@@ -43,7 +43,7 @@ func main() {
 		// Initialize and register Catalog service
 		catalogHandler := &catalog.CatalogServiceHandler{
 			Config: config,
-			DBPool: dbpool,
+			Db: db,
 		}
 		mux.Handle(catalog.NewServiceHandler(catalogHandler))
 	}

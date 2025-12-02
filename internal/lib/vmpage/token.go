@@ -1,12 +1,17 @@
-package page
+package vmpage
 
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"connectrpc.com/connect"
 )
+
+var ErrPanicTokenMarshall = errors.New("failed to marshall page token")
+
+var ErrBadPageToken = connect.NewError(connect.CodeInvalidArgument, errors.New("failed to read page token"))
 
 type lastSeenIdPage struct {
 	MagicNumber uint32 `json:"magic_number"`
@@ -22,7 +27,7 @@ func fromLastSeenId(lastSeenId uint32) string {
 	}
 	pageBytes, err := json.Marshal(page)
 	if err != nil {
-		panic(fmt.Errorf("%w: %w", ErrMarshal, err))
+		panic(fmt.Errorf("%w: %w", ErrPanicTokenMarshall, err))
 	}
 	return base64.StdEncoding.EncodeToString(pageBytes)
 }
@@ -33,14 +38,14 @@ func toLastSeenId(pageStr *string) (uint32, error) {
 	}
 	pageBytes, err := base64.StdEncoding.DecodeString(*pageStr)
 	if err != nil {
-		return 0, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("could not decode base64 data: %w", err))
+		return 0, fmt.Errorf("%w: could not decode base64 data: %w", ErrBadPageToken, err)
 	}
 	var page lastSeenIdPage
 	if err := json.Unmarshal(pageBytes, &page); err != nil {
-		return 0, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("could not decode json data: %w", err))
+		return 0, fmt.Errorf("%w: could not decode json data: %w", ErrBadPageToken, err)
 	}
 	if page.MagicNumber != lastSeenIdPageMagicNumber {
-		return 0, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid magic number"))
+		return 0, fmt.Errorf("%w: invalid magic number", ErrBadPageToken)
 	}
 	return page.LastSeenId, nil
 }

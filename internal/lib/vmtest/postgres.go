@@ -7,10 +7,10 @@ import (
 	"sync"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/krelinga/go-libs/exam"
 	"github.com/krelinga/video-manager/internal/lib/config"
 	"github.com/krelinga/video-manager/internal/lib/migrate"
+	"github.com/krelinga/video-manager/internal/lib/vmdb"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
@@ -21,8 +21,8 @@ type Postgres struct {
 	user     string
 	password string
 	dbName   string
-	pool     *pgxpool.Pool
-	poolOnce sync.Once
+	db       vmdb.DbRunner
+	dbOnce   sync.Once
 }
 
 func (p *Postgres) Host() string {
@@ -69,62 +69,49 @@ func (p *Postgres) Config() *config.Postgres {
 	}
 }
 
-func (p *Postgres) Pool(e exam.E) *pgxpool.Pool {
+func (p *Postgres) DbRunner(e exam.E) vmdb.DbRunner {
 	e.Helper()
-	p.poolOnce.Do(func() {
-		ctx := context.Background()
-		pool, err := pgxpool.New(ctx, p.URL())
+	p.dbOnce.Do(func() {
+		var err error
+		p.db, err = vmdb.New(p.URL())
 		if err != nil {
-			e.Fatalf("failed to create pgx pool: %v", err)
+			e.Fatalf("failed to create vmdb DbRunner: %v", err)
 		}
-		p.pool = pool
 	})
-	return p.pool
+	return p.db
 }
 
 func (p *Postgres) Reset(e exam.E) {
 	e.Helper()
-	pool := p.Pool(e)
+	db := p.DbRunner(e)
 	ctx := context.Background()
 
-	txn, err := pool.Begin(ctx)
+	tx, err := db.Begin(ctx)
 	if err != nil {
 		e.Fatalf("failed to begin transaction: %v", err)
 	}
-	defer txn.Rollback(ctx)
+	defer tx.Rollback(ctx)
+
 	// Get all table names
-	rows, err := txn.Query(ctx, `
-		SELECT tablename 
-		FROM pg_tables 
-		WHERE schemaname = 'public'
-	`)
+	var tables []string
+	const listTablesSql = `SELECT tablename FROM pg_tables WHERE schemaname = 'public'`
+	err = vmdb.Query(ctx, tx, vmdb.Constant(listTablesSql), func(tableName string) bool{
+		tables = append(tables, tableName)
+		return true
+	})
 	if err != nil {
 		e.Fatalf("failed to query tables: %v", err)
-	}
-	defer rows.Close()
-
-	var tables []string
-	for rows.Next() {
-		var tablename string
-		if err := rows.Scan(&tablename); err != nil {
-			e.Fatalf("failed to scan table name: %v", err)
-		}
-		tables = append(tables, tablename)
-	}
-
-	if err := rows.Err(); err != nil {
-		e.Fatalf("failed to iterate over table rows: %v", err)
 	}
 
 	// Drop all tables
 	for _, table := range tables {
-		_, err := txn.Exec(ctx, fmt.Sprintf("DROP TABLE IF EXISTS %s CASCADE", pgx.Identifier{table}.Sanitize()))
+		_, err := vmdb.Exec(ctx, tx, vmdb.Constant(fmt.Sprintf("DROP TABLE IF EXISTS %s CASCADE", pgx.Identifier{table}.Sanitize())))
 		if err != nil {
 			e.Fatalf("failed to drop table %s: %v", table, err)
 		}
 	}
 
-	if err := txn.Commit(ctx); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 		e.Fatalf("failed to commit transaction: %v", err)
 	}
 
