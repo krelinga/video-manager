@@ -12,7 +12,7 @@ import (
 
 func finishErr(err *error) {
 	if *err != nil {
-		*err = fmt.Errorf("%w: %w", Err, *err)
+		*err = fmt.Errorf("%w: %w", ErrInternal, *err)
 	}
 }
 
@@ -27,26 +27,26 @@ func Exec(ctx context.Context, r Runner, s Statement) (rowsAffected int, err err
 	return
 }
 
-func QueryOne[T any](ctx context.Context, r Runner, s Statement) (result T, err error) {
-	finishErr(&err)
+func QueryOne[T any](ctx context.Context, r Runner, s Statement) (T, error) {
 	count := 0
-	err = Query(ctx, r, s, func(record T) bool {
+	var result T
+	err := Query(ctx, r, s, func(record T) bool {
 		count++
 		result = record
 		return count < 2
 	})
-	if err == nil {
-		switch count {
-		case 0:
-			err = fmt.Errorf("query returned no rows")
-		case 1:
-			// ok
-		default:
-			err = fmt.Errorf("query returned more than one row")
-			result = zero.For[T]()
-		}
+	if err != nil {
+		return zero.For[T](), err
 	}
-	return
+	switch count {
+	case 0:
+		return zero.For[T](), ErrNotFound
+	case 1:
+		// ok
+	default:
+		return zero.For[T](), ErrMultipleRecords
+	}
+	return result, nil
 }
 
 func QueryOnePtr[T any](ctx context.Context, r Runner, s Statement) (result *T, err error) {

@@ -8,8 +8,11 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 )
-
-var Err = connect.NewError(connect.CodeInternal, errors.New("database error"))
+var (
+	ErrInternal = connect.NewError(connect.CodeInternal, errors.New("database error"))
+	ErrNotFound = connect.NewError(connect.CodeNotFound, errors.New("record not found"))
+	ErrMultipleRecords = connect.NewError(connect.CodeFailedPrecondition, errors.New("multiple records found"))
+)
 
 type Callback[T any] func(T) (wantMore bool)
 
