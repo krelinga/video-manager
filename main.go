@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/krelinga/video-manager-api/go/vmapi"
 	"github.com/krelinga/video-manager/internal/lib/config"
 	"github.com/krelinga/video-manager/internal/lib/migrate"
 	"github.com/krelinga/video-manager/internal/lib/vmdb"
+	"github.com/krelinga/video-manager/internal/services/catalog"
 	"github.com/krelinga/video-manager/internal/services/catalogproto"
 	"github.com/krelinga/video-manager/internal/services/disc"
 
@@ -25,7 +27,7 @@ func main() {
 	config := config.New()
 
 	// Create database connection pool.
-	
+
 	db, err := vmdb.New(config.Postgres.URL())
 	if err != nil {
 		fmt.Printf("Unable to connect to database: %v\n", err)
@@ -41,11 +43,14 @@ func main() {
 
 	if config.RunCatalogService {
 		// Initialize and register Catalog service
-		catalogHandler := &catalogproto.CatalogServiceHandler{
+		catalogProtoHandler := &catalogproto.CatalogServiceHandler{
 			Config: config,
-			Db: db,
+			Db:     db,
 		}
-		mux.Handle(catalogproto.NewServiceHandler(catalogHandler))
+		mux.Handle(catalogproto.NewServiceHandler(catalogProtoHandler))
+
+		server := vmapi.NewStrictHandler(&catalog.CatalogService{}, nil)
+		_ = vmapi.HandlerFromMuxWithBaseURL(server, mux, "/api/v1/catalog")
 	}
 
 	if config.RunDiscService {

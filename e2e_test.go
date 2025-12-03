@@ -13,6 +13,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/krelinga/go-libs/deep"
 	"github.com/krelinga/go-libs/exam"
+	"github.com/krelinga/video-manager-api/go/vmapi"
 	"github.com/krelinga/video-manager/internal/lib/vmtest"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -35,7 +36,7 @@ func TestEndToEnd(t *testing.T) {
 	})
 
 	pg := vmtest.PostgresOnce(e)
-	
+
 	// Build the binary using Docker
 	videoManagerReq := testcontainers.ContainerRequest{
 		FromDockerfile: testcontainers.FromDockerfile{
@@ -93,10 +94,9 @@ func TestEndToEnd(t *testing.T) {
 		}
 	}()
 
-	
 	vsConString := fmt.Sprintf("http://%s:%s", vcHost, vcPort.Port())
 
-	e.Run("catalog", func(e exam.E) {
+	e.Run("catalogproto", func(e exam.E) {
 		catalogClient := catalogv1connect.NewCatalogServiceClient(http.DefaultClient, vsConString)
 		e.Run("movie edition kind", func(e exam.E) {
 			e.Run("list empty editions", func(e exam.E) {
@@ -107,5 +107,16 @@ func TestEndToEnd(t *testing.T) {
 				exam.Equal(e, env, wantResp, listResp.Msg).Log(listResp.Msg)
 			})
 		})
+	})
+
+	e.Run("catalog", func(e exam.E) {
+		urlBase := vsConString + "/api/v1/catalog"
+		client, err := vmapi.NewClientWithResponses(urlBase)
+		exam.Nil(e, env, err).Log(err).Must()
+		params := &vmapi.ListCardsParams{}
+		response, err := client.ListCardsWithResponse(ctx, params)
+		exam.Nil(e, env, err).Log(err).Must()
+		exam.Equal(e, env, 200, response.StatusCode()).Log(response).Must()
+		e.Log("ListCards response:", deep.Format(env, response))
 	})
 }
