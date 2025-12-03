@@ -7,7 +7,7 @@ import (
 	"github.com/krelinga/video-manager/internal/lib/vmdb"
 )
 
-type CatalogService struct{
+type CatalogService struct {
 	Db vmdb.DbRunner
 }
 
@@ -15,9 +15,11 @@ type CatalogService struct{
 func (s *CatalogService) ListCards(ctx context.Context, request vmapi.ListCardsRequestObject) (vmapi.ListCardsResponseObject, error) {
 	name := "Example Card"
 	return vmapi.ListCards200JSONResponse{
-		{
-			Id:   1,
-			Name: &name,
+		Cards: []vmapi.Card{
+			{
+				Id:   1,
+				Name: &name,
+			},
 		},
 	}, nil
 }
@@ -35,26 +37,5 @@ func (s *CatalogService) GetCard(ctx context.Context, request vmapi.GetCardReque
 }
 
 func (s *CatalogService) PatchCard(ctx context.Context, request vmapi.PatchCardRequestObject) (vmapi.PatchCardResponseObject, error) {
-	return nil, nil // TODO
-}
-
-// Movie Edition Kind endpoints
-func (s *CatalogService) ListMovieEditionKinds(ctx context.Context, request vmapi.ListMovieEditionKindsRequestObject) (vmapi.ListMovieEditionKindsResponseObject, error) {
-	return nil, nil // TODO
-}
-
-func (s *CatalogService) PostMovieEditionKind(ctx context.Context, request vmapi.PostMovieEditionKindRequestObject) (vmapi.PostMovieEditionKindResponseObject, error) {
-	return nil, nil // TODO
-}
-
-func (s *CatalogService) DeleteMovieEditionKind(ctx context.Context, request vmapi.DeleteMovieEditionKindRequestObject) (vmapi.DeleteMovieEditionKindResponseObject, error) {
-	return nil, nil // TODO
-}
-
-func (s *CatalogService) GetMovieEditionKind(ctx context.Context, request vmapi.GetMovieEditionKindRequestObject) (vmapi.GetMovieEditionKindResponseObject, error) {
-	return nil, nil // TODO
-}
-
-func (s *CatalogService) PatchMovieEditionKind(ctx context.Context, request vmapi.PatchMovieEditionKindRequestObject) (vmapi.PatchMovieEditionKindResponseObject, error) {
 	return nil, nil // TODO
 }

@@ -97,6 +97,8 @@ github.com/krelinga/go-libs v0.4.1 h1:ckNjToTXRQpiTKuzuU7tUnJBBNxfXckpPWpjriWJza
 github.com/krelinga/go-libs v0.4.1/go.mod h1:JG4Bd2QUkplVO5Xk4EnX1cg1j0hdPmYeFCGgmIvtso4=
 github.com/krelinga/video-manager-api/go/vmapi v0.0.3 h1:x6/JlPvE34V4fbGL/zAvy4kMJNOAxEkd201c+wwIe+E=
 github.com/krelinga/video-manager-api/go/vmapi v0.0.3/go.mod h1:GvsQTkK3mbG7SPTbenjg3DIbbyAHS1kCcQDU0RSgehE=
+github.com/krelinga/video-manager-api/go/vmapi v0.0.4 h1:Yp188eKvvXMixXA35IHm5K3S0Tyjzp+iUz9NKDYeIts=
+github.com/krelinga/video-manager-api/go/vmapi v0.0.4/go.mod h1:GvsQTkK3mbG7SPTbenjg3DIbbyAHS1kCcQDU0RSgehE=
 github.com/lib/pq v1.10.9 h1:YXG7RB+JIjhP29X+OtkiDnYaXQwpS4JEWq7dtCCRUEw=
 github.com/lib/pq v1.10.9/go.mod h1:AlVN5x4E4T544tWzH6hKfbfQvm3HdbOxrmggDNAPY9o=
 github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 h1:6E+4a0GO5zZEnZ81pIr0yLvtUWk2if982qA3F3QD6H4=
