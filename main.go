@@ -49,7 +49,10 @@ func main() {
 		}
 		mux.Handle(catalogproto.NewServiceHandler(catalogProtoHandler))
 
-		server := vmapi.NewStrictHandler(&catalog.CatalogService{}, nil)
+		service := &catalog.CatalogService{
+			Db: db,
+		}
+		server := vmapi.NewStrictHandler(service, nil)
 		_ = vmapi.HandlerFromMuxWithBaseURL(server, mux, "/api/v1/catalog")
 	}
 

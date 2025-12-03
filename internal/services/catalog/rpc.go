@@ -4,9 +4,12 @@ import (
 	"context"
 
 	"github.com/krelinga/video-manager-api/go/vmapi"
+	"github.com/krelinga/video-manager/internal/lib/vmdb"
 )
 
-type CatalogService struct{}
+type CatalogService struct{
+	Db vmdb.DbRunner
+}
 
 // Card endpoints
 func (s *CatalogService) ListCards(ctx context.Context, request vmapi.ListCardsRequestObject) (vmapi.ListCardsResponseObject, error) {
