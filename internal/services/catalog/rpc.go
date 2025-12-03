@@ -18,7 +18,7 @@ func (s *CatalogService) ListCards(ctx context.Context, request vmapi.ListCardsR
 		Cards: []vmapi.Card{
 			{
 				Id:   1,
-				Name: &name,
+				Name: name,
 			},
 		},
 	}, nil
