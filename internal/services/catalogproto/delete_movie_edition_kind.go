@@ -1,4 +1,4 @@
-package catalog
+package catalogproto
 
 import (
 	"context"

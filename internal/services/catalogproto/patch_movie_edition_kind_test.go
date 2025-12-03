@@ -1,4 +1,4 @@
-package catalog_test
+package catalogproto_test
 
 import (
 	"context"

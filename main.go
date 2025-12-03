@@ -7,7 +7,7 @@ import (
 	"github.com/krelinga/video-manager/internal/lib/config"
 	"github.com/krelinga/video-manager/internal/lib/migrate"
 	"github.com/krelinga/video-manager/internal/lib/vmdb"
-	"github.com/krelinga/video-manager/internal/services/catalog"
+	"github.com/krelinga/video-manager/internal/services/catalogproto"
 	"github.com/krelinga/video-manager/internal/services/disc"
 
 	"golang.org/x/net/http2"
@@ -41,11 +41,11 @@ func main() {
 
 	if config.RunCatalogService {
 		// Initialize and register Catalog service
-		catalogHandler := &catalog.CatalogServiceHandler{
+		catalogHandler := &catalogproto.CatalogServiceHandler{
 			Config: config,
 			Db: db,
 		}
-		mux.Handle(catalog.NewServiceHandler(catalogHandler))
+		mux.Handle(catalogproto.NewServiceHandler(catalogHandler))
 	}
 
 	if config.RunDiscService {
