@@ -14,6 +14,10 @@ func (e *httpError) Error() string {
 	return e.wrapped.Error()
 }
 
+func (e *httpError) Unwrap() error {
+	return e.wrapped
+}
+
 var ErrPanicAlreadyWrapped = errors.New("error already wrapped")
 
 func checkAlreadyWrapped(err error) {

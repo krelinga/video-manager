@@ -2,29 +2,19 @@ package vmdb
 
 import (
 	"context"
-	"fmt"
 	"reflect"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/krelinga/go-libs/zero"
+	"github.com/krelinga/video-manager/internal/lib/vmerr"
 )
 
-func finishErr(err *error) {
-	if *err != nil {
-		*err = fmt.Errorf("%w: %w", ErrInternal, *err)
-	}
-}
-
-func Exec(ctx context.Context, r Runner, s Statement) (rowsAffected int, err error) {
-	defer finishErr(&err)
-	var ct pgconn.CommandTag
-	ct, err = r.exec(ctx, s)
+func Exec(ctx context.Context, r Runner, s Statement) (int, error) {
+	ct, err := r.exec(ctx, s)
 	if err != nil {
-		return
+		return 0, err
 	}
-	rowsAffected = int(ct.RowsAffected())
-	return
+	return int(ct.RowsAffected()), nil
 }
 
 func QueryOne[T any](ctx context.Context, r Runner, s Statement) (T, error) {
@@ -40,19 +30,19 @@ func QueryOne[T any](ctx context.Context, r Runner, s Statement) (T, error) {
 	}
 	switch count {
 	case 0:
-		return zero.For[T](), ErrNotFound
+		return zero.For[T](), vmerr.NotFound(ErrNotFound)
 	case 1:
 		// ok
 	default:
-		return zero.For[T](), ErrMultipleRecords
+		return zero.For[T](), vmerr.InternalError(ErrMultipleRecords)
 	}
 	return result, nil
 }
 
-func QueryOnePtr[T any](ctx context.Context, r Runner, s Statement) (result *T, err error) {
-	finishErr(&err)
+func QueryOnePtr[T any](ctx context.Context, r Runner, s Statement) (*T, error) {
 	count := 0
-	err = QueryPtr(ctx, r, s, func(record *T) bool {
+	var result *T
+	err := QueryPtr(ctx, r, s, func(record *T) bool {
 		count++
 		result = record
 		return count < 2
@@ -60,15 +50,15 @@ func QueryOnePtr[T any](ctx context.Context, r Runner, s Statement) (result *T, 
 	if err == nil {
 		switch count {
 		case 0:
-			err = fmt.Errorf("query returned no rows")
+			err = vmerr.NotFound(ErrNotFound)
 		case 1:
 			// ok
 		default:
-			err = fmt.Errorf("query returned more than one row")
+			err = vmerr.InternalError(ErrMultipleRecords)
 			result = nil
 		}
 	}
-	return
+	return result, err
 }
 
 func finishRows(rows pgx.Rows, err *error) {
@@ -100,10 +90,8 @@ func queryImpl[T any](ctx context.Context, r Runner, s Statement, cb Callback[T]
 	return
 }
 
-func Query[T any](ctx context.Context, r Runner, s Statement, cb Callback[T]) (err error) {
-	defer finishErr(&err)
-	queryImpl(ctx, r, s, cb)
-	return
+func Query[T any](ctx context.Context, r Runner, s Statement, cb Callback[T]) (error) {
+	return queryImpl(ctx, r, s, cb)
 }
 
 func queryPtrImpl[T any](ctx context.Context, r Runner, s Statement, cb Callback[*T]) (err error) {
@@ -128,8 +116,6 @@ func queryPtrImpl[T any](ctx context.Context, r Runner, s Statement, cb Callback
 	return
 }
 
-func QueryPtr[T any](ctx context.Context, r Runner, s Statement, cb Callback[*T]) (err error) {
-	defer finishErr(&err)
-	queryPtrImpl(ctx, r, s, cb)
-	return
+func QueryPtr[T any](ctx context.Context, r Runner, s Statement, cb Callback[*T]) (error) {
+	return queryPtrImpl(ctx, r, s, cb)
 }

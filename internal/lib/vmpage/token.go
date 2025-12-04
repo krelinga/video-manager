@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"connectrpc.com/connect"
+	"github.com/krelinga/video-manager/internal/lib/vmerr"
 )
 
 var ErrPanicTokenMarshall = errors.New("failed to marshall page token")
@@ -38,14 +39,14 @@ func toLastSeenId(pageStr *string) (uint32, error) {
 	}
 	pageBytes, err := base64.StdEncoding.DecodeString(*pageStr)
 	if err != nil {
-		return 0, fmt.Errorf("%w: could not decode base64 data: %w", ErrBadPageToken, err)
+		return 0, vmerr.BadRequest(fmt.Errorf("%w: could not decode base64 data: %w", ErrBadPageToken, err))
 	}
 	var page lastSeenIdPage
 	if err := json.Unmarshal(pageBytes, &page); err != nil {
-		return 0, fmt.Errorf("%w: could not decode json data: %w", ErrBadPageToken, err)
+		return 0, vmerr.BadRequest(fmt.Errorf("%w: could not decode json data: %w", ErrBadPageToken, err))
 	}
 	if page.MagicNumber != lastSeenIdPageMagicNumber {
-		return 0, fmt.Errorf("%w: invalid magic number", ErrBadPageToken)
+		return 0, vmerr.BadRequest(fmt.Errorf("%w: invalid magic number", ErrBadPageToken))
 	}
 	return page.LastSeenId, nil
 }

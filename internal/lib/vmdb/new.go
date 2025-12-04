@@ -7,6 +7,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/krelinga/video-manager/internal/lib/vmerr"
 )
 
 type pgxPoolDbRunner pgxpool.Pool
@@ -14,20 +15,22 @@ type pgxPoolDbRunner pgxpool.Pool
 func (p *pgxPoolDbRunner) exec(ctx context.Context, statement Statement) (pgconn.CommandTag, error) {
 	sql, params := statement.query()
 	asPool := (*pgxpool.Pool)(p)
-	return asPool.Exec(ctx, sql, params...)
+	ct, err := asPool.Exec(ctx, sql, params...)
+	return ct, vmerr.InternalError(err)
 }
 
 func (p *pgxPoolDbRunner) query(ctx context.Context, statement Statement) (pgx.Rows, error) {
 	sql, params := statement.query()
 	asPool := (*pgxpool.Pool)(p)
-	return asPool.Query(ctx, sql, params...)
+	rows, err := asPool.Query(ctx, sql, params...)
+	return rows, vmerr.InternalError(err)
 }
 
 func (p *pgxPoolDbRunner) Begin(ctx context.Context) (TxRunner, error) {
 	asPool := (*pgxpool.Pool)(p)
 	tx, err := asPool.Begin(ctx)
 	if err != nil {
-		return nil, err
+		return nil, vmerr.InternalError(err)
 	}
 	return pgxTxRunner{tx: tx}, nil
 }
@@ -43,16 +46,19 @@ type pgxTxRunner struct {
 
 func (t pgxTxRunner) exec(ctx context.Context, statement Statement) (pgconn.CommandTag, error) {
 	sql, params := statement.query()
-	return t.tx.Exec(ctx, sql, params...)
+	ct, err := t.tx.Exec(ctx, sql, params...)
+	return ct, vmerr.InternalError(err)
 }
 
 func (t pgxTxRunner) query(ctx context.Context, statement Statement) (pgx.Rows, error) {
 	sql, params := statement.query()
-	return t.tx.Query(ctx, sql, params...)
+	rows, err := t.tx.Query(ctx, sql, params...)
+	return rows, vmerr.InternalError(err)
 }
 
 func (t pgxTxRunner) Commit(ctx context.Context) error {
-	return t.tx.Commit(ctx)
+	err := t.tx.Commit(ctx)
+	return vmerr.InternalError(err)
 }
 
 func (t pgxTxRunner) Rollback(ctx context.Context) {
@@ -64,6 +70,7 @@ func (t pgxTxRunner) Rollback(ctx context.Context) {
 
 func New(url string) (DbRunner, error) {
 	pool, err := pgxpool.New(context.Background(), url)
+	// Not using functions from vmerr here because this should only be called during startup.
 	if err != nil {
 		return nil, err
 	}
