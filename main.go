@@ -9,7 +9,6 @@ import (
 	"github.com/krelinga/video-manager/internal/lib/migrate"
 	"github.com/krelinga/video-manager/internal/lib/vmdb"
 	"github.com/krelinga/video-manager/internal/services/catalog"
-	"github.com/krelinga/video-manager/internal/services/catalogproto"
 	"github.com/krelinga/video-manager/internal/services/disc"
 
 	"golang.org/x/net/http2"
@@ -43,12 +42,6 @@ func main() {
 
 	if config.RunCatalogService {
 		// Initialize and register Catalog service
-		catalogProtoHandler := &catalogproto.CatalogServiceHandler{
-			Config: config,
-			Db:     db,
-		}
-		mux.Handle(catalogproto.NewServiceHandler(catalogProtoHandler))
-
 		service := &catalog.CatalogService{
 			Db: db,
 		}

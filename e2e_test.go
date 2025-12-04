@@ -4,13 +4,9 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"net/http"
 	"os/exec"
 	"testing"
 
-	"buf.build/gen/go/krelinga/proto/connectrpc/go/krelinga/video_manager/catalog/v1/catalogv1connect"
-	catalogv1 "buf.build/gen/go/krelinga/proto/protocolbuffers/go/krelinga/video_manager/catalog/v1"
-	"connectrpc.com/connect"
 	"github.com/krelinga/go-libs/deep"
 	"github.com/krelinga/go-libs/exam"
 	"github.com/krelinga/go-libs/match"
@@ -96,19 +92,6 @@ func TestEndToEnd(t *testing.T) {
 	}()
 
 	vsConString := fmt.Sprintf("http://%s:%s", vcHost, vcPort.Port())
-
-	e.Run("catalogproto", func(e exam.E) {
-		catalogClient := catalogv1connect.NewCatalogServiceClient(http.DefaultClient, vsConString)
-		e.Run("movie edition kind", func(e exam.E) {
-			e.Run("list empty editions", func(e exam.E) {
-				listReq := &catalogv1.ListMovieEditionKindRequest{}
-				listResp, err := catalogClient.ListMovieEditionKind(ctx, connect.NewRequest(listReq))
-				exam.Nil(e, env, err).Log(err).Must()
-				wantResp := &catalogv1.ListMovieEditionKindResponse{}
-				exam.Equal(e, env, wantResp, listResp.Msg).Log(listResp.Msg)
-			})
-		})
-	})
 
 	e.Run("catalog", func(e exam.E) {
 		urlBase := vsConString + "/api/v1/catalog"
