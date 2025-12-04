@@ -386,3 +386,70 @@ func DeleteMovieEditionKindTest(t *testing.T) {
 		})
 	}
 }
+
+func GetMovieEditionKindTest(t *testing.T) {
+	ctx := context.Background()
+	e := exam.New(t)
+	env := deep.NewEnv()
+	pg := vmtest.PostgresOnce(e)
+	defer pg.Reset(e)
+	service := NewCatalogService(e, pg)
+
+	type Request = vmapi.GetMovieEditionKindRequestObject
+	type Response = vmapi.GetMovieEditionKindResponseObject
+
+	tests := []struct {
+		loc exam.Loc
+		name string
+		setup func(exam.E) uint32
+		wantErr match.Matcher
+		wantResp match.Matcher
+	} {
+		{
+			loc: exam.Here(),
+			name: "get non-existing ID",
+			setup: func(e exam.E) uint32 {
+				return 9999
+			},
+			wantErr: vmtest.HttpError(404),
+			wantResp: match.Nil(),
+		},
+		{
+			loc: exam.Here(),
+			name: "get existing ID",
+			setup: func(e exam.E) uint32 {
+				postReq := vmapi.PostMovieEditionKindRequestObject{
+					Body: &vmapi.PostMovieEditionKindJSONRequestBody{
+						Name: "MEK Name",
+						IsDefault: Set(true),
+					},
+				}
+				resp, err := service.PostMovieEditionKind(ctx, postReq)
+				exam.Nil(e, env, err).Log(err).Must()
+				return resp.(vmapi.PostMovieEditionKind201JSONResponse).Id
+			},
+			wantErr: match.Nil(),
+			wantResp: match.Interface(match.Struct{
+				Fields: map[deep.Field]match.Matcher{
+					deep.NamedField("Id"): match.GreaterThan(uint32(0)),
+					deep.NamedField("Name"): match.Equal("MEK Name"),
+					deep.NamedField("IsDefault"): match.Equal(true),
+				},
+			}),
+		},
+	}
+
+	for _, tt := range tests {
+		e.Run(tt.name, func(e exam.E) {
+			defer pg.Reset(e)
+			e.Log("test case:", tt.loc)
+			id := tt.setup(e)
+			req := Request{
+				Id: id,
+			}
+			resp, err := service.GetMovieEditionKind(ctx, req)
+			exam.Match(e, env, err, tt.wantErr).Log(err)
+			exam.Match(e, env, resp, tt.wantResp).Log(resp)
+		})
+	}
+}
