@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	"connectrpc.com/connect"
 	"github.com/krelinga/video-manager-api/go/vmapi"
 	"github.com/krelinga/video-manager/internal/lib/vmdb"
 	"github.com/krelinga/video-manager/internal/lib/vmerr"
@@ -124,7 +123,7 @@ func getMovieEditionKind(ctx context.Context, runner vmdb.Runner, id uint32) (vm
 	}
 	r, err := vmdb.QueryOne[row](ctx, runner, vmdb.Positional(sql, id))
 	if errors.Is(err, vmdb.ErrNotFound) {
-		return vmapi.MovieEditionKind{}, fmt.Errorf("movie_edition_kind with id %d not found", id)
+		return vmapi.MovieEditionKind{}, vmerr.NotFound(fmt.Errorf("movie_edition_kind with id %d not found", id))
 	} else if err != nil {
 		return vmapi.MovieEditionKind{}, err
 	}
@@ -194,7 +193,7 @@ func (s *CatalogService) PatchMovieEditionKind(ctx context.Context, request vmap
 			return nil, vmerr.BadRequest(errors.New("multiple fields to patch in a single patch are not supported"))
 		}
 		if rowsAffected == 0 {
-			return nil, vmerr.NotFound(connect.NewError(connect.CodeNotFound, fmt.Errorf("movie edition kind with id %d not found", id)))
+			return nil, vmerr.NotFound(fmt.Errorf("movie edition kind with id %d not found", id))
 		}
 	}
 

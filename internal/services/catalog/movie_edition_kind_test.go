@@ -396,7 +396,6 @@ func GetMovieEditionKindTest(t *testing.T) {
 	service := NewCatalogService(e, pg)
 
 	type Request = vmapi.GetMovieEditionKindRequestObject
-	type Response = vmapi.GetMovieEditionKindResponseObject
 
 	tests := []struct {
 		loc exam.Loc
@@ -450,6 +449,221 @@ func GetMovieEditionKindTest(t *testing.T) {
 			resp, err := service.GetMovieEditionKind(ctx, req)
 			exam.Match(e, env, err, tt.wantErr).Log(err)
 			exam.Match(e, env, resp, tt.wantResp).Log(resp)
+		})
+	}
+}
+
+func TestPatchMovieEditionKind(t *testing.T) {
+	ctx := context.Background()
+	e := exam.New(t)
+	env := deep.NewEnv()
+	pg := vmtest.PostgresOnce(e)
+	defer pg.Reset(e)
+	service := NewCatalogService(e, pg)
+
+	type Request = vmapi.PatchMovieEditionKindRequestObject
+	type Body = vmapi.PatchMovieEditionKindJSONRequestBody
+	type Patch = vmapi.MovieEditionKindPatch
+
+	tests := []struct{
+		loc exam.Loc
+		name string
+		setup func(exam.E) uint32
+		patches []Patch
+		wantErr match.Matcher
+		wantResp match.Matcher
+		check func(e exam.E)
+	} {
+		{
+			loc: exam.Here(),
+			name: "bad ID",
+			setup: func(e exam.E) uint32 {
+				return 9999
+			},
+			patches: []Patch{},
+			wantErr: vmtest.HttpError(404),
+			wantResp: match.Nil(),
+		},
+		{
+			loc: exam.Here(),
+			name: "no patch fields set",
+			setup: func(e exam.E) uint32 {
+				postReq := vmapi.PostMovieEditionKindRequestObject{
+					Body: &vmapi.PostMovieEditionKindJSONRequestBody{
+						Name: "MEK to Patch",
+					},
+				}
+				resp, err := service.PostMovieEditionKind(ctx, postReq)
+				exam.Nil(e, env, err).Log(err).Must()
+				return resp.(vmapi.PostMovieEditionKind201JSONResponse).Id
+			},
+			patches: []Patch{
+				{},
+			},
+			wantErr: vmtest.HttpError(400),
+			wantResp: match.Nil(),
+		},
+		{
+			loc: exam.Here(),
+			name: "multiple patch fields set",
+			setup: func(e exam.E) uint32 {
+				postReq := vmapi.PostMovieEditionKindRequestObject{
+					Body: &vmapi.PostMovieEditionKindJSONRequestBody{
+						Name: "MEK to Patch",
+					},
+				}
+				resp, err := service.PostMovieEditionKind(ctx, postReq)
+				exam.Nil(e, env, err).Log(err).Must()
+				return resp.(vmapi.PostMovieEditionKind201JSONResponse).Id
+			},
+			patches: []Patch{
+				{
+					Name:      Set("Updated Name"),
+					IsDefault: Set(true),
+				},
+			},
+			wantErr: vmtest.HttpError(400),
+			wantResp: match.Nil(),
+		},
+		{
+			loc: exam.Here(),
+			name: "successful name patch",
+			setup: func(e exam.E) uint32 {
+				postReq := vmapi.PostMovieEditionKindRequestObject{
+					Body: &vmapi.PostMovieEditionKindJSONRequestBody{
+						Name: "MEK to Patch",
+					},
+				}
+				resp, err := service.PostMovieEditionKind(ctx, postReq)
+				exam.Nil(e, env, err).Log(err).Must()
+				return resp.(vmapi.PostMovieEditionKind201JSONResponse).Id
+			},
+			patches: []Patch{
+				{
+					Name: Set("Updated MEK Name"),
+				},
+			},
+			wantErr: match.Nil(),
+			wantResp: match.Interface(match.Struct{
+				Fields: map[deep.Field]match.Matcher{
+					deep.NamedField("Id"): match.GreaterThan(uint32(0)),
+					deep.NamedField("Name"): match.Equal("Updated MEK Name"),
+					deep.NamedField("IsDefault"): match.Equal(false),
+				},
+			}),
+		},
+		{
+			loc: exam.Here(),
+			name: "successful is_default patch clears other defaults",
+			setup: func(e exam.E) uint32 {
+				// Create existing default MEK
+				postReq := vmapi.PostMovieEditionKindRequestObject{
+					Body: &vmapi.PostMovieEditionKindJSONRequestBody{
+						Name: "Existing Default MEK",
+						IsDefault: Set(true),
+					},
+				}
+				_, err := service.PostMovieEditionKind(ctx, postReq)
+				exam.Nil(e, env, err).Log(err).Must()
+
+				// Create MEK to patch
+				postReq2 := vmapi.PostMovieEditionKindRequestObject{
+					Body: &vmapi.PostMovieEditionKindJSONRequestBody{
+						Name: "MEK to Patch",
+					},
+				}
+				resp, err := service.PostMovieEditionKind(ctx, postReq2)
+				exam.Nil(e, env, err).Log(err).Must()
+				return resp.(vmapi.PostMovieEditionKind201JSONResponse).Id
+			},
+			patches: []Patch{
+				{
+					IsDefault: Set(true),
+				},
+			},
+			wantErr: match.Nil(),
+			wantResp: match.Interface(match.Struct{
+				Fields: map[deep.Field]match.Matcher{
+					deep.NamedField("Id"): match.GreaterThan(uint32(0)),
+					deep.NamedField("Name"): match.Equal("MEK to Patch"),
+					deep.NamedField("IsDefault"): match.Equal(true),
+				},
+			}),
+			check: func(e exam.E) {
+				listReq := vmapi.ListMovieEditionKindsRequestObject{}
+				listResp, err := service.ListMovieEditionKinds(ctx, listReq)
+				exam.Nil(e, env, err).Log(err).Must()
+				wantEntries := match.Interface(match.Struct{
+					Fields: map[deep.Field]match.Matcher{
+						deep.NamedField("MovieEditionKinds"): match.Slice{
+							Unordered: true,
+							Matchers: []match.Matcher{
+								match.Struct{
+									Fields: map[deep.Field]match.Matcher{
+										deep.NamedField("Name"): match.Equal("Existing Default MEK"),
+										deep.NamedField("IsDefault"): match.Equal(false),
+									},
+								},
+								match.Struct{
+									Fields: map[deep.Field]match.Matcher{
+										deep.NamedField("Name"): match.Equal("MEK to Patch"),
+										deep.NamedField("IsDefault"): match.Equal(true),
+									},
+								},
+							},
+						},
+					},
+				})
+				exam.Match(e, env, listResp, wantEntries).Log(listResp)
+			},
+		},
+		{
+			loc: exam.Here(),
+			name: "multiple patches applied sequentially",
+			setup: func(e exam.E) uint32 {
+				postReq := vmapi.PostMovieEditionKindRequestObject{
+					Body: &vmapi.PostMovieEditionKindJSONRequestBody{
+						Name: "MEK to Patch",
+					},
+				}
+				resp, err := service.PostMovieEditionKind(ctx, postReq)
+				exam.Nil(e, env, err).Log(err).Must()
+				return resp.(vmapi.PostMovieEditionKind201JSONResponse).Id
+			},
+			patches: []Patch{
+				{
+					Name: Set("First Update"),
+				},
+				{
+					IsDefault: Set(true),
+				},
+			},
+			wantErr: match.Nil(),
+			wantResp: match.Interface(match.Struct{
+				Fields: map[deep.Field]match.Matcher{
+					deep.NamedField("Id"): match.GreaterThan(uint32(0)),
+					deep.NamedField("Name"): match.Equal("First Update"),
+					deep.NamedField("IsDefault"): match.Equal(true),
+				},
+			}),
+		},
+	}
+
+	for _, tt := range tests {
+		e.Run(tt.name, func(e exam.E) {
+			defer pg.Reset(e)
+			e.Log("test case:", tt.loc)
+			id := tt.setup(e)
+			req := Request{
+				Id: id,
+				Body: &tt.patches,
+			}
+			resp, err := service.PatchMovieEditionKind(ctx, req)
+			exam.Match(e, env, err, tt.wantErr).Log(err)
+			exam.Match(e, env, resp, tt.wantResp).Log(resp)
+			if tt.check != nil {
+				tt.check(e)
+			}
 		})
 	}
 }
