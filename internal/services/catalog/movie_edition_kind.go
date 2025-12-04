@@ -30,7 +30,6 @@ func (s *CatalogService) ListMovieEditionKinds(ctx context.Context, request vmap
 		})
 		return r.Id
 	})
-	// TODO: do something to make sure the invalid page token, etc (request-level errors) return a 400 error code.
 	if err != nil {
 		return nil, err
 	}
