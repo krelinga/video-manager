@@ -13,6 +13,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/krelinga/go-libs/deep"
 	"github.com/krelinga/go-libs/exam"
+	"github.com/krelinga/go-libs/match"
 	"github.com/krelinga/video-manager-api/go/vmapi"
 	"github.com/krelinga/video-manager/internal/lib/vmtest"
 	"github.com/testcontainers/testcontainers-go"
@@ -113,10 +114,29 @@ func TestEndToEnd(t *testing.T) {
 		urlBase := vsConString + "/api/v1/catalog"
 		client, err := vmapi.NewClientWithResponses(urlBase)
 		exam.Nil(e, env, err).Log(err).Must()
-		params := &vmapi.ListCardsParams{}
-		response, err := client.ListCardsWithResponse(ctx, params)
-		exam.Nil(e, env, err).Log(err).Must()
-		exam.Equal(e, env, 200, response.StatusCode()).Log(response).Must()
-		e.Log("ListCards response:", deep.Format(env, response))
+
+		e.Run("movie edition kinds", func(e exam.E) {
+			e.Run("list empty editions", func(e exam.E) {
+				params := &vmapi.ListMovieEditionKindsParams{}
+				response, err := client.ListMovieEditionKindsWithResponse(ctx, params)
+				exam.Nil(e, env, err).Log(err).Must()
+				exam.Equal(e, env, 200, response.StatusCode()).Log(response).Must()
+				wantResp := match.Pointer(match.Struct{
+					Fields: map[deep.Field]match.Matcher{
+						deep.NamedField("HTTPResponse"): match.Pointer(match.Struct{
+							Fields: map[deep.Field]match.Matcher{
+								deep.NamedField("StatusCode"): match.Equal(200),
+							},
+						}),
+						deep.NamedField("JSON200"): match.Pointer(match.Struct{
+							Fields: map[deep.Field]match.Matcher{
+								deep.NamedField("MovieEditionKinds"): match.Len(match.Equal(0)),
+							},
+						}),
+					},
+				})
+				exam.Match(e, env, response, wantResp).Log(response)
+			})
+		})
 	})
 }
