@@ -24,6 +24,9 @@ func checkAlreadyWrapped(err error) {
 }
 
 func NotFound(err error) error {
+	if err == nil {
+		return nil
+	}
 	checkAlreadyWrapped(err)
 	return &httpError{
 		statusCode: 404,
@@ -32,6 +35,9 @@ func NotFound(err error) error {
 }
 
 func BadRequest(err error) error {
+	if err == nil {
+		return nil
+	}
 	checkAlreadyWrapped(err)
 	return &httpError{
 		statusCode: 400,
@@ -40,6 +46,9 @@ func BadRequest(err error) error {
 }
 
 func InternalError(err error) error {
+	if err == nil {
+		return nil
+	}
 	checkAlreadyWrapped(err)
 	return &httpError{
 		statusCode: 500,
