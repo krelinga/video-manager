@@ -148,7 +148,6 @@ func TestPostMovieEditionKind(t *testing.T) {
 
 	type Request = vmapi.PostMovieEditionKindRequestObject
 	type RequestBody = vmapi.PostMovieEditionKindJSONRequestBody
-	type Response = vmapi.PostMovieEditionKindResponseObject
 
 	tests := []struct {
 		loc exam.Loc
@@ -316,6 +315,71 @@ func TestPostMovieEditionKind(t *testing.T) {
 			resp, err := service.PostMovieEditionKind(ctx, tt.req)
 			exam.Match(e, env, err, tt.wantErr).Log(err)
 			exam.Match(e, env, resp, tt.wantResp).Log(resp)
+			if tt.check != nil {
+				tt.check(e)
+			}
+		})
+	}
+}
+
+func DeleteMovieEditionKindTest(t *testing.T) {
+	ctx := context.Background()
+	e := exam.New(t)
+	env := deep.NewEnv()
+	pg := vmtest.PostgresOnce(e)
+	defer pg.Reset(e)
+	service := NewCatalogService(e, pg)
+
+	type Request = vmapi.DeleteMovieEditionKindRequestObject
+
+	tests := []struct {
+		loc exam.Loc
+		name string
+		setup func(exam.E) uint32
+		wantErr match.Matcher
+		check func(exam.E)
+	} {
+		{
+			loc: exam.Here(),
+			name: "bad ID",
+			setup: func(e exam.E) uint32 {
+				return 9999
+			},
+			wantErr: vmtest.HttpError(404),
+		},
+		{
+			loc: exam.Here(),
+			name: "successful deletion",
+			setup: func(e exam.E) uint32 {
+				postReq := vmapi.PostMovieEditionKindRequestObject{
+					Body: &vmapi.PostMovieEditionKindJSONRequestBody{
+						Name: "Edition Kind to Delete",
+					},
+				}
+				resp, err := service.PostMovieEditionKind(ctx, postReq)
+				exam.Nil(e, env, err).Log(err).Must()
+				return resp.(vmapi.PostMovieEditionKind201JSONResponse).Id
+			},
+			check: func(e exam.E) {
+				listReq := vmapi.ListMovieEditionKindsRequestObject{}
+				listResp, err := service.ListMovieEditionKinds(ctx, listReq)
+				exam.Nil(e, env, err).Log(err).Must()
+				exam.Equal(e, env, len(listResp.(vmapi.ListMovieEditionKinds200JSONResponse).MovieEditionKinds), 0).Log(listResp)
+			},
+			wantErr: match.Nil(),
+		},
+	}
+
+	for _, tt := range tests {
+		e.Run(tt.name, func(e exam.E) {
+			defer pg.Reset(e)
+			e.Log("test case:", tt.loc)
+			id := tt.setup(e)
+			req := Request{
+				Id: id,
+			}
+			_, err := service.DeleteMovieEditionKind(ctx, req)
+			exam.Match(e, env, err, tt.wantErr).Log(err)
 			if tt.check != nil {
 				tt.check(e)
 			}
