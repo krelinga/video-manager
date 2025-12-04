@@ -9,7 +9,7 @@ require (
 	github.com/golang-migrate/migrate/v4 v4.19.0
 	github.com/jackc/pgx/v5 v5.5.4
 	github.com/krelinga/go-libs v0.4.1
-	github.com/krelinga/video-manager-api/go/vmapi v0.0.6
+	github.com/krelinga/video-manager-api/go/vmapi v0.0.7
 	github.com/testcontainers/testcontainers-go v0.40.0
 	golang.org/x/net v0.47.0
 )
