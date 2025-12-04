@@ -10,11 +10,11 @@ import (
 )
 
 func Middleware(w http.ResponseWriter, r *http.Request, err error) {
-	var httpErr *httpError
+	var httpErr *HttpError
 	if !errors.As(err, &httpErr) {
-		httpErr = &httpError{
-			statusCode: 500,
-			wrapped:    fmt.Errorf("unhandled internal server error: %w", err),
+		httpErr = &HttpError{
+			StatusCode: 500,
+			Wrapped:    fmt.Errorf("unhandled internal server error: %w", err),
 		}
 	}
 
@@ -23,7 +23,7 @@ func Middleware(w http.ResponseWriter, r *http.Request, err error) {
 	h.Del("Content-Length")
 	h.Set("Content-Type", "text/json; charset=utf-8")
 	h.Set("X-Content-Type-Options", "nosniff")
-	w.WriteHeader(httpErr.statusCode)
+	w.WriteHeader(httpErr.StatusCode)
 
 	errJson := vmapi.ErrorResponse{
 		Message: httpErr.Error(),
