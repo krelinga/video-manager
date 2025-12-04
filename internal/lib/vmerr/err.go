@@ -59,3 +59,14 @@ func InternalError(err error) error {
 		wrapped:    err,
 	}
 }
+
+func Conflict(err error) error {
+	if err == nil {
+		return nil
+	}
+	checkAlreadyWrapped(err)
+	return &httpError{
+		statusCode: 409,
+		wrapped:    err,
+	}
+}
