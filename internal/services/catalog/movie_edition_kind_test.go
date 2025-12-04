@@ -137,3 +137,188 @@ func TestListMovieEditionKinds(t *testing.T) {
 		exam.Match(e, env, err, vmtest.HttpError(400)).Log(err)
 	})
 }
+
+func TestPostMovieEditionKind(t *testing.T) {
+	ctx := context.Background()
+	e := exam.New(t)
+	env := deep.NewEnv()
+	pg := vmtest.PostgresOnce(e)
+	defer pg.Reset(e)
+	service := NewCatalogService(e, pg)
+
+	type Request = vmapi.PostMovieEditionKindRequestObject
+	type RequestBody = vmapi.PostMovieEditionKindJSONRequestBody
+	type Response = vmapi.PostMovieEditionKindResponseObject
+
+	tests := []struct {
+		loc exam.Loc
+		name string
+		setup func(exam.E)
+		req Request
+		wantResp match.Matcher
+		wantErr match.Matcher
+		check func(exam.E)
+	} {
+		{
+			loc: exam.Here(),
+			name: "request empty name",
+			req: Request{
+				Body: &RequestBody{
+					Name: "",
+				},
+			},
+			wantErr: vmtest.HttpError(400),
+			wantResp: match.Nil(),
+			check: func(e exam.E) {
+				listReq := vmapi.ListMovieEditionKindsRequestObject{}
+				listResp, err := service.ListMovieEditionKinds(ctx, listReq)
+				exam.Nil(e, env, err).Log(err).Must()
+				exam.Equal(e, env, len(listResp.(vmapi.ListMovieEditionKinds200JSONResponse).MovieEditionKinds), 0).Log(listResp)
+			},
+		},
+		{
+			loc: exam.Here(),
+			name: "reused name case insensitive",
+			setup: func(e exam.E) {
+				postReq := Request{
+					Body: &RequestBody{
+						Name: "Original Name",
+					},
+				}
+				_, err := service.PostMovieEditionKind(ctx, postReq)
+				exam.Nil(e, env, err).Log(err).Must()
+			},
+			req: Request{
+				Body: &RequestBody{
+					Name: "original name",
+				},
+			},
+			wantErr: vmtest.HttpError(409),
+			wantResp: match.Nil(),
+			check: func(e exam.E) {
+				listReq := vmapi.ListMovieEditionKindsRequestObject{}
+				listResp, err := service.ListMovieEditionKinds(ctx, listReq)
+				exam.Nil(e, env, err).Log(err).Must()
+				exam.Equal(e, env, len(listResp.(vmapi.ListMovieEditionKinds200JSONResponse).MovieEditionKinds), 1).Log(listResp)
+			},
+		},
+		{
+			loc: exam.Here(),
+			name: "successful creation",
+			req: Request{
+				Body: &RequestBody{
+					Name: "New Edition Kind",
+					IsDefault: Set(true),
+				},
+			},
+			wantErr: match.Nil(),
+			wantResp: match.Interface(match.Struct{
+				Fields: map[deep.Field]match.Matcher{
+					deep.NamedField("Id"): match.GreaterThan(uint32(0)),
+					deep.NamedField("Name"): match.Equal("New Edition Kind"),
+					deep.NamedField("IsDefault"): match.Equal(true),
+				},
+			}),
+			check: func(e exam.E) {
+				listReq := vmapi.ListMovieEditionKindsRequestObject{}
+				listResp, err := service.ListMovieEditionKinds(ctx, listReq)
+				exam.Nil(e, env, err).Log(err).Must()
+				exam.Equal(e, env, len(listResp.(vmapi.ListMovieEditionKinds200JSONResponse).MovieEditionKinds), 1).Log(listResp)
+			},
+		},
+		{
+			loc: exam.Here(),
+			name: "successful creation with nil is_default",
+			req: Request{
+				Body: &RequestBody{
+					Name: "Another Edition Kind",
+				},
+			},
+			wantErr: match.Nil(),
+			wantResp: match.Interface(match.Struct{
+				Fields: map[deep.Field]match.Matcher{
+					deep.NamedField("Id"): match.GreaterThan(uint32(0)),
+					deep.NamedField("Name"): match.Equal("Another Edition Kind"),
+					deep.NamedField("IsDefault"): match.Equal(false),
+				},
+			}),
+			check: func(e exam.E) {
+				listReq := vmapi.ListMovieEditionKindsRequestObject{}
+				listResp, err := service.ListMovieEditionKinds(ctx, listReq)
+				exam.Nil(e, env, err).Log(err).Must()
+				exam.Equal(e, env, len(listResp.(vmapi.ListMovieEditionKinds200JSONResponse).MovieEditionKinds), 1).Log(listResp)
+			},
+		},
+		{
+			loc: exam.Here(),
+			name: "is_default true overrides existing default",
+			setup: func(e exam.E) {
+				postReq := Request{
+					Body: &RequestBody{
+						Name: "Default Edition Kind",
+						IsDefault: Set(true),
+					},
+				}
+				_, err := service.PostMovieEditionKind(ctx, postReq)
+				exam.Nil(e, env, err).Log(err).Must()
+			},
+			req: Request{
+				Body: &RequestBody{
+					Name: "New Default Edition Kind",
+					IsDefault: Set(true),
+				},
+			},
+			wantErr: match.Nil(),
+			wantResp: match.Interface(match.Struct{
+				Fields: map[deep.Field]match.Matcher{
+					deep.NamedField("Id"): match.GreaterThan(uint32(0)),
+					deep.NamedField("Name"): match.Equal("New Default Edition Kind"),
+					deep.NamedField("IsDefault"): match.Equal(true),
+				},
+			}),
+			check: func(e exam.E) {
+				listReq := vmapi.ListMovieEditionKindsRequestObject{}
+				listResp, err := service.ListMovieEditionKinds(ctx, listReq)
+				exam.Nil(e, env, err).Log(err).Must()
+				wantEntries := match.Interface(match.Struct{
+					Fields: map[deep.Field]match.Matcher{
+						deep.NamedField("MovieEditionKinds"): match.Slice{
+							Unordered: true,
+							Matchers: []match.Matcher{
+								match.Struct{
+									Fields: map[deep.Field]match.Matcher{
+										deep.NamedField("Name"): match.Equal("Default Edition Kind"),
+										deep.NamedField("IsDefault"): match.Equal(false),
+									},
+								},
+								match.Struct{
+									Fields: map[deep.Field]match.Matcher{
+										deep.NamedField("Name"): match.Equal("New Default Edition Kind"),
+										deep.NamedField("IsDefault"): match.Equal(true),
+									},
+								},
+							},
+						},
+					},
+				})
+				exam.Match(e, env, listResp, wantEntries).Log(listResp)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		e.Run(tt.name, func(e exam.E) {
+			defer pg.Reset(e)
+			e.Log("test case:", tt.loc)
+			if tt.setup != nil {
+				tt.setup(e)
+			}
+			resp, err := service.PostMovieEditionKind(ctx, tt.req)
+			exam.Match(e, env, err, tt.wantErr).Log(err)
+			exam.Match(e, env, resp, tt.wantResp).Log(resp)
+			if tt.check != nil {
+				tt.check(e)
+			}
+		})
+	}
+}
