@@ -462,7 +462,6 @@ func TestPatchMovieEditionKind(t *testing.T) {
 	service := NewCatalogService(e, pg)
 
 	type Request = vmapi.PatchMovieEditionKindRequestObject
-	type Body = vmapi.PatchMovieEditionKindJSONRequestBody
 	type Patch = vmapi.MovieEditionKindPatch
 
 	tests := []struct{
