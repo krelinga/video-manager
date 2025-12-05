@@ -10,6 +10,7 @@ import (
 	"github.com/krelinga/video-manager/internal/lib/vmdb"
 	"github.com/krelinga/video-manager/internal/services/catalog"
 	"github.com/krelinga/video-manager/internal/services/inbox"
+	"github.com/krelinga/video-manager/internal/services/media"
 
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
@@ -47,6 +48,7 @@ func main() {
 		InboxService: &inbox.InboxService{
 			Config: config,
 		},
+		MediaService: &media.MediaService{},
 	}
 	handler := vmapi.NewStrictHandler(service, nil)
 	vmapi.HandlerFromMuxWithBaseURL(handler, mux, "/api/v1")
