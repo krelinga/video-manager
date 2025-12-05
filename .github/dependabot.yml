@@ -10,16 +10,3 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
-  - package-ecosystem: "gomod"
-    directory: "/"
-    schedule:
-      interval: daily
-    allow:
-      - dependency-name: "buf.build/gen/go/krelinga*"
-    groups:
-      buff-schema-registry:
-        patterns:
-          - "*"
-
-# TODO: consider something to run dependabot manually to pick up proto buffer changes.
-# see https://github.com/dependabot/example-cli-usage for some inspiration.
