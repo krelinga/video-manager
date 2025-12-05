@@ -51,10 +51,21 @@ CREATE TABLE IF NOT EXISTS media (
         FOREIGN KEY (media_set_id) REFERENCES media_sets(id)
 );
 
+-- Create media_dvd_ingestion_state enum type (if it doesn't already exist)
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'media_dvd_ingestion_state') THEN
+    CREATE TYPE media_dvd_ingestion_state AS ENUM ('pending', 'done', 'error');
+  END IF;
+END
+$$;
+
 -- Create media_dvds table
 CREATE TABLE IF NOT EXISTS media_dvds (
     media_id INTEGER PRIMARY KEY,
     path TEXT NOT NULL CHECK (path <> ''),
+    ingestion_state media_dvd_ingestion_state NOT NULL DEFAULT 'pending',
+    ingestion_error TEXT,
     CONSTRAINT fk_media_dvds_media_id 
         FOREIGN KEY (media_id) REFERENCES media(id) ON DELETE CASCADE
 );
