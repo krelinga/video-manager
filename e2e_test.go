@@ -47,6 +47,7 @@ func TestEndToEnd(t *testing.T) {
 			"VIDEO_MANAGER_POSTGRES_DBNAME":   pg.DBName(),
 			"VIDEO_MANAGER_POSTGRES_USER":     pg.User(),
 			"VIDEO_MANAGER_POSTGRES_PASSWORD": pg.Password(),
+			"VIDEO_MANAGER_INBOX_DVD_DIR":     t.TempDir(),
 		},
 		WaitingFor: wait.ForHTTP("/health").WithPort("25009/tcp"),
 	}

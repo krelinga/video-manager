@@ -14,10 +14,12 @@ func TestNew(t *testing.T) {
 	env := deep.NewEnv()
 
 	// Required variables.
+	tempDir := e.TempDir()
 	exam.SetEnv(e, config.EnvPostgresHost, "localhost")
 	exam.SetEnv(e, config.EnvPostgresUser, "testuser")
 	exam.SetEnv(e, config.EnvPostgresDBName, "testdb")
 	exam.SetEnv(e, config.EnvPostgresPassword, "testpassword")
+	exam.SetEnv(e, config.EnvInboxDVDDir, tempDir)
 
 	e.Run("successful config creation", func(e exam.E) {
 		cfg := config.New()
@@ -50,6 +52,7 @@ func TestNew(t *testing.T) {
 			config.EnvPostgresDBName,
 			config.EnvPostgresUser,
 			config.EnvPostgresPassword,
+			config.EnvInboxDVDDir,
 		}
 		for _, v := range tests {
 			e.Run(v, func(e exam.E) {

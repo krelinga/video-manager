@@ -19,12 +19,13 @@ const (
 	EnvPostgresDBName   = "VIDEO_MANAGER_POSTGRES_DBNAME"
 	EnvPostgresUser     = "VIDEO_MANAGER_POSTGRES_USER"
 	EnvPostgresPassword = "VIDEO_MANAGER_POSTGRES_PASSWORD"
+	EnvInboxDVDDir      = "VIDEO_MANAGER_INBOX_DVD_DIR"
 )
 
 type Config struct {
-	DiscInboxDir      string
-	HttpPort          int
-	Postgres          *Postgres
+	DiscInboxDir string
+	HttpPort     int
+	Postgres     *Postgres
 }
 
 type Postgres struct {
@@ -47,9 +48,8 @@ func (p *Postgres) URL() string {
 
 func New() *Config {
 	return &Config{
-		// TODO: make these configurable.
-		DiscInboxDir:      "/nas/media/video-manager/disc/inbox",
-		HttpPort:          25009,
+		DiscInboxDir: getRequiredVar(EnvInboxDVDDir),
+		HttpPort:     25009,
 		Postgres: &Postgres{
 			Host:     getRequiredVar(EnvPostgresHost),
 			Port:     parseInt(getVarWithDefault(EnvPostgresPort, "5432")),
