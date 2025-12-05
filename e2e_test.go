@@ -94,7 +94,7 @@ func TestEndToEnd(t *testing.T) {
 	vsConString := fmt.Sprintf("http://%s:%s", vcHost, vcPort.Port())
 
 	e.Run("catalog", func(e exam.E) {
-		urlBase := vsConString + "/api/v1/catalog"
+		urlBase := vsConString + "/api/v1"
 		client, err := vmapi.NewClientWithResponses(urlBase)
 		exam.Nil(e, env, err).Log(err).Must()
 
@@ -103,7 +103,7 @@ func TestEndToEnd(t *testing.T) {
 				params := &vmapi.ListMovieEditionKindsParams{}
 				response, err := client.ListMovieEditionKindsWithResponse(ctx, params)
 				exam.Nil(e, env, err).Log(err).Must()
-				exam.Equal(e, env, 200, response.StatusCode()).Log(response).Must()
+				exam.Equal(e, env, 200, response.StatusCode()).Log(deep.Format(env, response)).Must()
 				wantResp := match.Pointer(match.Struct{
 					Fields: map[deep.Field]match.Matcher{
 						deep.NamedField("HTTPResponse"): match.Pointer(match.Struct{

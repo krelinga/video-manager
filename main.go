@@ -10,6 +10,7 @@ import (
 	"github.com/krelinga/video-manager/internal/lib/vmdb"
 	"github.com/krelinga/video-manager/internal/services/catalog"
 	"github.com/krelinga/video-manager/internal/services/disc"
+	"github.com/krelinga/video-manager/internal/services/inbox"
 
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
@@ -40,14 +41,16 @@ func main() {
 		return
 	}
 
-	if config.RunCatalogService {
-		// Initialize and register Catalog service
-		service := &catalog.CatalogService{
+	service := &CombinedService{
+		CatalogService: &catalog.CatalogService{
 			Db: db,
-		}
-		server := vmapi.NewStrictHandler(service, nil)
-		_ = vmapi.HandlerFromMuxWithBaseURL(server, mux, "/api/v1/catalog")
+		},
+		InboxService: &inbox.InboxService{
+			Config: config,
+		},
 	}
+	handler := vmapi.NewStrictHandler(service, nil)
+	vmapi.HandlerFromMuxWithBaseURL(handler, mux, "/api/v1")
 
 	if config.RunDiscService {
 		// Initialize and register Disc service
