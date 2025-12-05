@@ -19,6 +19,9 @@ import (
 // TestEndToEnd verifies that the video-manager binary can start successfully
 // with a PostgreSQL database connection configured via environment variables.
 func TestEndToEnd(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode")
+	}
 	e := exam.New(t)
 	env := deep.NewEnv()
 	ctx := context.Background()
