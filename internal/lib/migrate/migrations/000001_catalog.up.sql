@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS catalog_cards (
 );
 
 -- Create catalog_movies table
+-- movies are a kind of catalog_card, and so they share a primary key.
 CREATE TABLE IF NOT EXISTS catalog_movies (
     card_id INTEGER PRIMARY KEY,
     tmdb_id INTEGER,
@@ -27,14 +28,19 @@ ON catalog_movie_edition_kinds (is_default)
 WHERE is_default;
 
 -- Create catalog_movie_editions table
+-- movie_editions are a kind of catalog_card, and so they cshare a primary key.
+-- The movie_id field references the parent movie's card_id, and must be set.
 CREATE TABLE IF NOT EXISTS catalog_movie_editions (
-    id SERIAL PRIMARY KEY,
+    card_id INTEGER PRIMARY KEY,
     kind_id INTEGER NOT NULL,
-    movie_id INTEGER NOT NULL,
+    movie_card_id INTEGER NOT NULL,
+    note TEXT,
+    CONSTRAINT fk_catalog_movie_editions_card_id 
+        FOREIGN KEY (card_id) REFERENCES catalog_cards(id) ON DELETE CASCADE,
     CONSTRAINT fk_catalog_movie_editions_kind_id 
         FOREIGN KEY (kind_id) REFERENCES catalog_movie_edition_kinds(id),
-    CONSTRAINT fk_catalog_movie_editions_movie_id 
-        FOREIGN KEY (movie_id) REFERENCES catalog_movies(card_id) ON DELETE CASCADE
+    CONSTRAINT fk_catalog_movie_editions_movie_card_id 
+        FOREIGN KEY (movie_card_id) REFERENCES catalog_movies(card_id) ON DELETE CASCADE
 );
 
 -- Create media_sets table
@@ -70,27 +76,24 @@ CREATE TABLE IF NOT EXISTS media_dvds (
         FOREIGN KEY (media_id) REFERENCES media(id) ON DELETE CASCADE
 );
 
--- Create media_x_movies table
-CREATE TABLE IF NOT EXISTS media_x_movies (
+-- Create media_x_cards table
+CREATE TABLE IF NOT EXISTS media_x_cards (
     media_id INTEGER NOT NULL,
-    movie_card_id INTEGER NOT NULL,
-    edition_id INTEGER,
-    PRIMARY KEY (media_id, movie_card_id),
-    CONSTRAINT fk_media_movies_media_id 
+    card_id INTEGER NOT NULL,
+    PRIMARY KEY (media_id, card_id),
+    CONSTRAINT fk_media_cards_media_id 
         FOREIGN KEY (media_id) REFERENCES media(id) ON DELETE CASCADE,
-    CONSTRAINT fk_media_movies_movie_id 
-        FOREIGN KEY (movie_card_id) REFERENCES catalog_movies(card_id) ON DELETE CASCADE,
-    CONSTRAINT fk_media_movies_edition_id 
-        FOREIGN KEY (edition_id) REFERENCES catalog_movie_editions(id)
+    CONSTRAINT fk_media_cards_card_id 
+        FOREIGN KEY (card_id) REFERENCES catalog_cards(id) ON DELETE CASCADE
 );
 
--- Create media_sets_x_movies table
-CREATE TABLE IF NOT EXISTS media_sets_x_movies (
+-- Create media_sets_x_cards table
+CREATE TABLE IF NOT EXISTS media_sets_x_cards (
     media_set_id INTEGER NOT NULL,
-    movie_card_id INTEGER NOT NULL,
-    PRIMARY KEY (media_set_id, movie_card_id),
-    CONSTRAINT fk_media_sets_movies_media_set_id 
+    card_id INTEGER NOT NULL,
+    PRIMARY KEY (media_set_id, card_id),
+    CONSTRAINT fk_media_sets_cards_media_set_id 
         FOREIGN KEY (media_set_id) REFERENCES media_sets(id) ON DELETE CASCADE,
-    CONSTRAINT fk_media_sets_movies_movie_card_id 
-        FOREIGN KEY (movie_card_id) REFERENCES catalog_movies(card_id) ON DELETE CASCADE
+    CONSTRAINT fk_media_sets_cards_card_id 
+        FOREIGN KEY (card_id) REFERENCES catalog_cards(id) ON DELETE CASCADE
 );
