@@ -36,3 +36,50 @@ CREATE TABLE IF NOT EXISTS catalog_movie_editions (
     CONSTRAINT fk_catalog_movie_editions_movie_id 
         FOREIGN KEY (movie_id) REFERENCES catalog_movies(card_id) ON DELETE CASCADE
 );
+
+-- Create media_sets table
+CREATE TABLE IF NOT EXISTS media_sets (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL CHECK (name <> '')
+);
+
+-- Create media table
+CREATE TABLE IF NOT EXISTS media (
+    id SERIAL PRIMARY KEY,
+    media_set_id INTEGER,
+    CONSTRAINT fk_media_media_set_id 
+        FOREIGN KEY (media_set_id) REFERENCES media_sets(id)
+);
+
+-- Create media_dvds table
+CREATE TABLE IF NOT EXISTS media_dvds (
+    media_id INTEGER PRIMARY KEY,
+    path TEXT NOT NULL CHECK (path <> ''),
+    CONSTRAINT fk_media_dvds_media_id 
+        FOREIGN KEY (media_id) REFERENCES media(id) ON DELETE CASCADE
+);
+
+-- Create media_x_movies table
+CREATE TABLE IF NOT EXISTS media_x_movies (
+    media_id INTEGER NOT NULL,
+    movie_card_id INTEGER NOT NULL,
+    edition_id INTEGER,
+    PRIMARY KEY (media_id, movie_card_id),
+    CONSTRAINT fk_media_movies_media_id 
+        FOREIGN KEY (media_id) REFERENCES media(id) ON DELETE CASCADE,
+    CONSTRAINT fk_media_movies_movie_id 
+        FOREIGN KEY (movie_card_id) REFERENCES catalog_movies(card_id) ON DELETE CASCADE,
+    CONSTRAINT fk_media_movies_edition_id 
+        FOREIGN KEY (edition_id) REFERENCES catalog_movie_editions(id)
+);
+
+-- Create media_sets_x_movies table
+CREATE TABLE IF NOT EXISTS media_sets_x_movies (
+    media_set_id INTEGER NOT NULL,
+    movie_card_id INTEGER NOT NULL,
+    PRIMARY KEY (media_set_id, movie_card_id),
+    CONSTRAINT fk_media_sets_movies_media_set_id 
+        FOREIGN KEY (media_set_id) REFERENCES media_sets(id) ON DELETE CASCADE,
+    CONSTRAINT fk_media_sets_movies_movie_card_id 
+        FOREIGN KEY (movie_card_id) REFERENCES catalog_movies(card_id) ON DELETE CASCADE
+);
