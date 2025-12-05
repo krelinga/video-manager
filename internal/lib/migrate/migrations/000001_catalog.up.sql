@@ -2,7 +2,7 @@
 CREATE TABLE IF NOT EXISTS catalog_cards (
     id SERIAL PRIMARY KEY,
     name TEXT NOT NULL CHECK (name <> ''),
-    year INTEGER NOT NULL
+    note TEXT
 );
 
 -- Create catalog_movies table
@@ -34,7 +34,6 @@ CREATE TABLE IF NOT EXISTS catalog_movie_editions (
     card_id INTEGER PRIMARY KEY,
     kind_id INTEGER NOT NULL,
     movie_card_id INTEGER NOT NULL,
-    note TEXT,
     CONSTRAINT fk_catalog_movie_editions_card_id 
         FOREIGN KEY (card_id) REFERENCES catalog_cards(id) ON DELETE CASCADE,
     CONSTRAINT fk_catalog_movie_editions_kind_id 
@@ -46,13 +45,15 @@ CREATE TABLE IF NOT EXISTS catalog_movie_editions (
 -- Create media_sets table
 CREATE TABLE IF NOT EXISTS media_sets (
     id SERIAL PRIMARY KEY,
-    name TEXT NOT NULL CHECK (name <> '')
+    name TEXT NOT NULL CHECK (name <> ''),
+    note TEXT
 );
 
 -- Create media table
 CREATE TABLE IF NOT EXISTS media (
     id SERIAL PRIMARY KEY,
     media_set_id INTEGER,
+    note TEXT,
     CONSTRAINT fk_media_media_set_id 
         FOREIGN KEY (media_set_id) REFERENCES media_sets(id)
 );
