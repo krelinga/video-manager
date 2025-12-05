@@ -9,7 +9,6 @@ import (
 	"github.com/krelinga/video-manager/internal/lib/migrate"
 	"github.com/krelinga/video-manager/internal/lib/vmdb"
 	"github.com/krelinga/video-manager/internal/services/catalog"
-	"github.com/krelinga/video-manager/internal/services/disc"
 	"github.com/krelinga/video-manager/internal/services/inbox"
 
 	"golang.org/x/net/http2"
@@ -51,12 +50,6 @@ func main() {
 	}
 	handler := vmapi.NewStrictHandler(service, nil)
 	vmapi.HandlerFromMuxWithBaseURL(handler, mux, "/api/v1")
-
-	if config.RunDiscService {
-		// Initialize and register Disc service
-		discHandler := &disc.DiscServiceHandler{Config: config}
-		mux.Handle(disc.NewServiceHandler(discHandler))
-	}
 
 	server := &http.Server{
 		Addr:    fmt.Sprintf("0.0.0.0:%d", config.HttpPort),
