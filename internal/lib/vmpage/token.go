@@ -6,13 +6,12 @@ import (
 	"errors"
 	"fmt"
 
-	"connectrpc.com/connect"
 	"github.com/krelinga/video-manager/internal/lib/vmerr"
 )
 
 var ErrPanicTokenMarshall = errors.New("failed to marshall page token")
 
-var ErrBadPageToken = connect.NewError(connect.CodeInvalidArgument, errors.New("failed to read page token"))
+var ErrBadPageToken = errors.New("failed to read page token")
 
 type lastSeenIdPage struct {
 	MagicNumber uint32 `json:"magic_number"`

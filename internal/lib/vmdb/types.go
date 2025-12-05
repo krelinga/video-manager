@@ -4,14 +4,13 @@ import (
 	"context"
 	"errors"
 
-	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 )
 var (
-	ErrInternal = connect.NewError(connect.CodeInternal, errors.New("database error"))
-	ErrNotFound = connect.NewError(connect.CodeNotFound, errors.New("record not found"))
-	ErrMultipleRecords = connect.NewError(connect.CodeFailedPrecondition, errors.New("multiple records found"))
+	ErrInternal = errors.New("database error")
+	ErrNotFound = errors.New("record not found")
+	ErrMultipleRecords = errors.New("multiple records found")
 )
 
 type Callback[T any] func(T) (wantMore bool)
