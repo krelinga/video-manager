@@ -334,6 +334,14 @@ func (s *CatalogService) PatchCard(ctx context.Context, request vmapi.PatchCardR
 					return nil, fmt.Errorf("could not update fanart_id: %w", err)
 				}
 			}
+
+			if moviePatch.ReleaseYear != nil {
+				const query = "UPDATE catalog_movies SET release_year = $1 WHERE card_id = $2;"
+				_, err := vmdb.Exec(ctx, tx, vmdb.Positional(query, *moviePatch.ReleaseYear, id))
+				if err != nil {
+					return nil, fmt.Errorf("could not update release_year: %w", err)
+				}
+			}
 		}
 
 		if patch.MovieEdition != nil {
