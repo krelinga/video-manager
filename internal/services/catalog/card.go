@@ -14,7 +14,7 @@ import (
 func (s *CatalogService) ListCards(ctx context.Context, request vmapi.ListCardsRequestObject) (vmapi.ListCardsResponseObject, error) {
 	const sql = `
 		SELECT 
-			c.id, c.name,
+			c.id, c.name, c.note,
 			m.card_id IS NOT NULL AS is_movie,
 			m.tmdb_id, m.fanart_id,
 			me.card_id IS NOT NULL AS is_movie_edition,
@@ -38,6 +38,7 @@ func (s *CatalogService) ListCards(ctx context.Context, request vmapi.ListCardsR
 	type row struct {
 		Id             uint32
 		Name           string
+		Note           *string
 		IsMovie        bool
 		TmdbId         *uint64
 		FanartId       *string
@@ -49,6 +50,7 @@ func (s *CatalogService) ListCards(ctx context.Context, request vmapi.ListCardsR
 		card := vmapi.Card{
 			Id:   r.Id,
 			Name: r.Name,
+			Note: r.Note,
 		}
 		if r.IsMovie {
 			card.Details.Movie = &vmapi.Movie{
@@ -108,8 +110,12 @@ func (s *CatalogService) PostCard(ctx context.Context, request vmapi.PostCardReq
 	}
 
 	// Insert the card
-	const insertCardQuery = "INSERT INTO catalog_cards (name) VALUES ($1) RETURNING id"
-	cardId, err := vmdb.QueryOne[uint32](ctx, tx, vmdb.Positional(insertCardQuery, name))
+	var note *string
+	if request.Body.Note != nil {
+		note = request.Body.Note
+	}
+	const insertCardQuery = "INSERT INTO catalog_cards (name, note) VALUES ($1, $2) RETURNING id"
+	cardId, err := vmdb.QueryOne[uint32](ctx, tx, vmdb.Positional(insertCardQuery, name, note))
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert new card: %w", err)
 	}
@@ -186,7 +192,7 @@ func (s *CatalogService) DeleteCard(ctx context.Context, request vmapi.DeleteCar
 func getCard(ctx context.Context, runner vmdb.Runner, id uint32) (vmapi.Card, error) {
 	const sql = `
 		SELECT 
-			c.id, c.name,
+			c.id, c.name, c.note,
 			m.card_id IS NOT NULL AS is_movie,
 			m.tmdb_id, m.fanart_id,
 			me.card_id IS NOT NULL AS is_movie_edition,
@@ -199,6 +205,7 @@ func getCard(ctx context.Context, runner vmdb.Runner, id uint32) (vmapi.Card, er
 	type row struct {
 		Id             uint32
 		Name           string
+		Note           *string
 		IsMovie        bool
 		TmdbId         *uint64
 		FanartId       *string
@@ -216,6 +223,7 @@ func getCard(ctx context.Context, runner vmdb.Runner, id uint32) (vmapi.Card, er
 	card := vmapi.Card{
 		Id:   r.Id,
 		Name: r.Name,
+		Note: r.Note,
 	}
 	if r.IsMovie {
 		card.Details.Movie = &vmapi.Movie{
@@ -285,6 +293,18 @@ func (s *CatalogService) PatchCard(ctx context.Context, request vmapi.PatchCardR
 			rowsAffected, err := vmdb.Exec(ctx, tx, vmdb.Positional(query, name, id))
 			if err != nil {
 				return nil, fmt.Errorf("could not update name: %w", err)
+			}
+			if rowsAffected == 0 {
+				return nil, vmerr.NotFound(fmt.Errorf("card with id %d not found", id))
+			}
+		}
+
+		if patch.Note != nil {
+			fieldsSet++
+			const query = "UPDATE catalog_cards SET note = $1 WHERE id = $2;"
+			rowsAffected, err := vmdb.Exec(ctx, tx, vmdb.Positional(query, *patch.Note, id))
+			if err != nil {
+				return nil, fmt.Errorf("could not update note: %w", err)
 			}
 			if rowsAffected == 0 {
 				return nil, vmerr.NotFound(fmt.Errorf("card with id %d not found", id))
