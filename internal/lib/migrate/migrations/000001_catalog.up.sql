@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS catalog_cards (
 -- movies are a kind of catalog_card, and so they share a primary key.
 CREATE TABLE IF NOT EXISTS catalog_movies (
     card_id INTEGER PRIMARY KEY,
+    release_year INTEGER,
     tmdb_id INTEGER,
     fanart_id TEXT,
     CONSTRAINT fk_catalog_movies_card_id 
