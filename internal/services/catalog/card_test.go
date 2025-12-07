@@ -606,30 +606,14 @@ func TestDeleteCard(t *testing.T) {
 				return movieId
 			},
 			check: func(e exam.E) {
-				// TODO: this is a bug.  The comment below was written by AI ... this is not the intended behavior.
-				// The movie card is deleted, edition card remains but without movie_edition details
-				// (due to CASCADE on movie_card_id FK in catalog_movie_editions)
+				// The movie & movie edition cards should both be deleted.
 				listReq := vmapi.ListCardsRequestObject{}
 				listResp, err := service.ListCards(ctx, listReq)
 				exam.Nil(e, env, err).Log(err).Must()
 				// Edition card still exists but with no details (neither Movie nor MovieEdition)
 				exam.Match(e, env, listResp, match.Interface(match.Struct{
 					Fields: map[deep.Field]match.Matcher{
-						deep.NamedField("Cards"): match.Slice{
-							Matchers: []match.Matcher{
-								match.Struct{
-									Fields: map[deep.Field]match.Matcher{
-										deep.NamedField("Name"): match.Equal("Movie Edition"),
-										deep.NamedField("Details"): match.Struct{
-											Fields: map[deep.Field]match.Matcher{
-												deep.NamedField("Movie"):        match.Nil(),
-												deep.NamedField("MovieEdition"): match.Nil(),
-											},
-										},
-									},
-								},
-							},
-						},
+						deep.NamedField("Cards"): match.Len(match.Equal(0)),
 					},
 				})).Log(listResp)
 			},

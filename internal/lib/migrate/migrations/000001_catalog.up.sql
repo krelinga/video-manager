@@ -43,6 +43,22 @@ CREATE TABLE IF NOT EXISTS catalog_movie_editions (
         FOREIGN KEY (movie_card_id) REFERENCES catalog_movies(card_id) ON DELETE CASCADE
 );
 
+-- A trigger to ensure that the catalog_card for a movie edition is deleted when the corresponding catalog_movie_edition is deleted.
+CREATE OR REPLACE FUNCTION delete_movie_edition_card()
+RETURNS TRIGGER AS $$
+BEGIN
+    DELETE FROM catalog_cards WHERE id = OLD.card_id;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_delete_movie_edition_card ON catalog_movie_editions;
+
+CREATE TRIGGER trg_delete_movie_edition_card
+AFTER DELETE ON catalog_movie_editions
+FOR EACH ROW
+EXECUTE FUNCTION delete_movie_edition_card();
+
 -- Create media_sets table
 CREATE TABLE IF NOT EXISTS media_sets (
     id SERIAL PRIMARY KEY,
