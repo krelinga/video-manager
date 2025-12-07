@@ -16,6 +16,22 @@ CREATE TABLE IF NOT EXISTS catalog_movies (
         FOREIGN KEY (card_id) REFERENCES catalog_cards(id) ON DELETE CASCADE
 );
 
+-- A trigger to ensure that the catalog_card for a movie is deleted when the corresponding catalog_movie is deleted.
+CREATE OR REPLACE FUNCTION delete_movie_card()
+RETURNS TRIGGER AS $$
+BEGIN
+    DELETE FROM catalog_cards WHERE id = OLD.card_id;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_delete_movie_card ON catalog_movies;
+
+CREATE TRIGGER trg_delete_movie_card
+AFTER DELETE ON catalog_movies
+FOR EACH ROW
+EXECUTE FUNCTION delete_movie_card();
+
 -- Create catalog_movie_edition_kinds table
 CREATE TABLE IF NOT EXISTS catalog_movie_edition_kinds (
     id SERIAL PRIMARY KEY,
@@ -93,6 +109,22 @@ CREATE TABLE IF NOT EXISTS media_dvds (
     CONSTRAINT fk_media_dvds_media_id 
         FOREIGN KEY (media_id) REFERENCES media(id) ON DELETE CASCADE
 );
+
+-- A trigger to ensure that the media record is deleted when the corresponding media_dvd is deleted.
+CREATE OR REPLACE FUNCTION delete_dvd_media()
+RETURNS TRIGGER AS $$
+BEGIN
+    DELETE FROM media WHERE id = OLD.media_id;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_delete_dvd_media ON media_dvds;
+
+CREATE TRIGGER trg_delete_dvd_media
+AFTER DELETE ON media_dvds
+FOR EACH ROW
+EXECUTE FUNCTION delete_dvd_media();
 
 -- Create media_x_cards table
 CREATE TABLE IF NOT EXISTS media_x_cards (
