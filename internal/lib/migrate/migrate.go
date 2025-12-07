@@ -45,6 +45,7 @@ func Up(cfg *config.Postgres) error {
 	if err != nil {
 		return err
 	}
+	defer m.Close()
 	log.Println("Starting database UP migrations...")
 	err = m.Up()
 	if err != nil && err != migrate.ErrNoChange {
@@ -60,6 +61,7 @@ func Down(cfg *config.Postgres) error {
 	if err != nil {
 		return err
 	}
+	defer m.Close()
 	log.Println("Starting database DOWN migrations...")
 	err = m.Down()
 	if err != nil && err != migrate.ErrNoChange {

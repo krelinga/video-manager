@@ -6,7 +6,6 @@ import (
 	"net/url"
 	"sync"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/krelinga/go-libs/exam"
 	"github.com/krelinga/video-manager/internal/lib/config"
 	"github.com/krelinga/video-manager/internal/lib/migrate"
@@ -83,36 +82,9 @@ func (p *Postgres) DbRunner(e exam.E) vmdb.DbRunner {
 
 func (p *Postgres) Reset(e exam.E) {
 	e.Helper()
-	db := p.DbRunner(e)
-	ctx := context.Background()
-
-	tx, err := db.Begin(ctx)
-	if err != nil {
-		e.Fatalf("failed to begin transaction: %v", err)
-	}
-	defer tx.Rollback(ctx)
-
-	// Get all table names
-	var tables []string
-	const listTablesSql = `SELECT tablename FROM pg_tables WHERE schemaname = 'public'`
-	err = vmdb.Query(ctx, tx, vmdb.Constant(listTablesSql), func(tableName string) bool {
-		tables = append(tables, tableName)
-		return true
-	})
-	if err != nil {
-		e.Fatalf("failed to query tables: %v", err)
-	}
-
-	// Drop all tables
-	for _, table := range tables {
-		_, err := vmdb.Exec(ctx, tx, vmdb.Constant(fmt.Sprintf("DROP TABLE IF EXISTS %s CASCADE", pgx.Identifier{table}.Sanitize())))
-		if err != nil {
-			e.Fatalf("failed to drop table %s: %v", table, err)
-		}
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		e.Fatalf("failed to commit transaction: %v", err)
+	// Roll back all migrations.
+	if err := migrate.Down(p.Config()); err != nil {
+		e.Fatalf("failed to reset database: %v", err)
 	}
 
 	// Recreate the initial state.
