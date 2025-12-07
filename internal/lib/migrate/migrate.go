@@ -27,7 +27,7 @@ func (l logger) Verbose() bool {
 	return false
 }
 
-func Migrate(cfg *config.Postgres) error {
+func Up(cfg *config.Postgres) error {
 	d, err := iofs.New(migrationsFS, "migrations")
 	if err != nil {
 		return fmt.Errorf("%w: failed to create iofs source: %w", Err, err)
@@ -37,7 +37,7 @@ func Migrate(cfg *config.Postgres) error {
 		return fmt.Errorf("%w: failed to create migrate instance: %w", Err, err)
 	}
 	m.Log = logger{Logger: log.Default()}
-	
+
 	log.Println("Starting database migrations...")
 	err = m.Up()
 	if err != nil && err != migrate.ErrNoChange {

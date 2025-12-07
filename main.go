@@ -36,7 +36,7 @@ func main() {
 	defer db.Close()
 
 	// Handle any necessary DB migrations.
-	if err := migrate.Migrate(config.Postgres); err != nil {
+	if err := migrate.Up(config.Postgres); err != nil {
 		fmt.Printf("Database migration error: %v\n", err)
 		return
 	}

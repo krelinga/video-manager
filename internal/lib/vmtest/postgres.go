@@ -95,7 +95,7 @@ func (p *Postgres) Reset(e exam.E) {
 	// Get all table names
 	var tables []string
 	const listTablesSql = `SELECT tablename FROM pg_tables WHERE schemaname = 'public'`
-	err = vmdb.Query(ctx, tx, vmdb.Constant(listTablesSql), func(tableName string) bool{
+	err = vmdb.Query(ctx, tx, vmdb.Constant(listTablesSql), func(tableName string) bool {
 		tables = append(tables, tableName)
 		return true
 	})
@@ -116,7 +116,7 @@ func (p *Postgres) Reset(e exam.E) {
 	}
 
 	// Recreate the initial state.
-	if err := migrate.Migrate(p.Config()); err != nil {
+	if err := migrate.Up(p.Config()); err != nil {
 		e.Fatalf("failed to migrate database: %v", err)
 	}
 }
