@@ -318,7 +318,7 @@ func (s *CatalogService) PatchCard(ctx context.Context, request vmapi.PatchCardR
 			}
 			moviePatch := patch.Movie
 
-			// TODO: validate that only one field on patch.Movie is set.
+			// TODO: validate that exactly one field on patch.Movie is set.
 			if moviePatch.TmdbId != nil {
 				const query = "UPDATE catalog_movies SET tmdb_id = $1 WHERE card_id = $2;"
 				_, err := vmdb.Exec(ctx, tx, vmdb.Positional(query, *moviePatch.TmdbId, id))
@@ -350,7 +350,7 @@ func (s *CatalogService) PatchCard(ctx context.Context, request vmapi.PatchCardR
 				return nil, vmerr.BadRequest(errors.New("cannot patch movie_edition fields on a non-movie_edition card"))
 			}
 			mePatch := patch.MovieEdition
-			// TODO: validate that only one field on patch.MovieEdition is set.
+			// TODO: validate that exactly one field on patch.MovieEdition is set.
 			if mePatch.KindId != nil {
 				const checkKindQuery = "SELECT COUNT(*) FROM catalog_movie_edition_kinds WHERE id = $1"
 				count, err := vmdb.QueryOne[int](ctx, tx, vmdb.Positional(checkKindQuery, *mePatch.KindId))
@@ -372,7 +372,7 @@ func (s *CatalogService) PatchCard(ctx context.Context, request vmapi.PatchCardR
 		if fieldsSet == 0 {
 			return nil, vmerr.BadRequest(errors.New("no valid fields to patch"))
 		}
-		// TODO: throw an error if multiple fields are set in a single patch.
+		// TODO: return an error if multiple fields are set in a single patch.
 	}
 
 	card, err := getCard(ctx, tx, id)
