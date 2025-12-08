@@ -48,7 +48,9 @@ func main() {
 		InboxService: &inbox.InboxService{
 			Config: config,
 		},
-		MediaService: &media.MediaService{},
+		MediaService: &media.MediaService{
+			Db: db,
+		},
 	}
 	handler := vmapi.NewStrictHandler(service, nil)
 	vmapi.HandlerFromMuxWithBaseURL(handler, mux, "/api/v1")
