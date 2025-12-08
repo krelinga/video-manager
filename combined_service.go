@@ -78,3 +78,24 @@ func (cs *CombinedService) GetMedia(ctx context.Context, request vmapi.GetMediaR
 func (cs *CombinedService) PatchMedia(ctx context.Context, request vmapi.PatchMediaRequestObject) (vmapi.PatchMediaResponseObject, error) {
 	return cs.MediaService.PatchMedia(ctx, request)
 }
+
+
+func (cs *CombinedService) ListMediaSets(ctx context.Context, request vmapi.ListMediaSetsRequestObject) (vmapi.ListMediaSetsResponseObject, error) {
+	return cs.MediaService.ListMediaSets(ctx, request)
+}
+
+func (cs *CombinedService) PostMediaSet(ctx context.Context, request vmapi.PostMediaSetRequestObject) (vmapi.PostMediaSetResponseObject, error) {
+	return cs.MediaService.PostMediaSet(ctx, request)
+}
+
+func (cs *CombinedService) DeleteMediaSet(ctx context.Context, request vmapi.DeleteMediaSetRequestObject) (vmapi.DeleteMediaSetResponseObject, error) {
+	return cs.MediaService.DeleteMediaSet(ctx, request)
+}
+
+func (cs *CombinedService) GetMediaSet(ctx context.Context, request vmapi.GetMediaSetRequestObject) (vmapi.GetMediaSetResponseObject, error) {
+	return cs.MediaService.GetMediaSet(ctx, request)
+}
+
+func (cs *CombinedService) PatchMediaSet(ctx context.Context, request vmapi.PatchMediaSetRequestObject) (vmapi.PatchMediaSetResponseObject, error) {
+	return cs.MediaService.PatchMediaSet(ctx, request)
+}
