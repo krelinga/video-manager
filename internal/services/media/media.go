@@ -56,9 +56,11 @@ func (ms *MediaService) ListMedia(ctx context.Context, request vmapi.ListMediaRe
 		if r.IsDvd && r.Path != nil && r.IngestionState != nil {
 			media.Details = &vmapi.MediaDetails{
 				Dvd: &vmapi.DVD{
-					Path:           *r.Path,
-					IngestionState: vmapi.DVDIngestionState(*r.IngestionState),
-					IngestionError: r.IngestionError,
+					Path: *r.Path,
+					Ingestion: vmapi.DVDIngestion{
+						State:        vmapi.DVDIngestionState(*r.IngestionState),
+						ErrorMessage: r.IngestionError,
+					},
 				},
 			}
 		}
@@ -200,6 +202,22 @@ func getMediaCardIds(ctx context.Context, runner vmdb.Runner, mediaId uint32) ([
 	return cardIds, nil
 }
 
+func validateDvdIngestion(in *vmapi.DVDIngestion) error {
+	switch in.State {
+	case vmapi.DVDIngestionStatePending, vmapi.DVDIngestionStateDone:
+		if in.ErrorMessage != nil {
+			return vmerr.BadRequest(fmt.Errorf("error message must be nil when ingestion state is %s", in.State))
+		}
+	case vmapi.DVDIngestionStateError:
+		if in.ErrorMessage == nil || *in.ErrorMessage == "" {
+			return vmerr.BadRequest(fmt.Errorf("error message must be non-nil and non-empty when ingestion state is %s", in.State))
+		}
+	default:
+		return vmerr.BadRequest(fmt.Errorf("invalid ingestion state: %s", in.State))
+	}
+	return nil
+}
+
 // We need a transaction for this because multiple queries are run inside this helper function.
 func getMedia(ctx context.Context, tx vmdb.TxRunner, id uint32) (vmapi.Media, error) {
 	const sql = `
@@ -235,9 +253,11 @@ func getMedia(ctx context.Context, tx vmdb.TxRunner, id uint32) (vmapi.Media, er
 	if r.IsDvd && r.Path != nil && r.IngestionState != nil {
 		media.Details = &vmapi.MediaDetails{
 			Dvd: &vmapi.DVD{
-				Path:           *r.Path,
-				IngestionState: vmapi.DVDIngestionState(*r.IngestionState),
-				IngestionError: r.IngestionError,
+				Path: *r.Path,
+				Ingestion: vmapi.DVDIngestion{
+					State:        vmapi.DVDIngestionState(*r.IngestionState),
+					ErrorMessage: r.IngestionError,
+				},
 			},
 		}
 	}
@@ -402,10 +422,7 @@ func (ms *MediaService) PatchMedia(ctx context.Context, request vmapi.PatchMedia
 			if dvdPatch.Path != nil {
 				fieldsSetInDvd++
 			}
-			if dvdPatch.IngestionState != nil {
-				fieldsSetInDvd++
-			}
-			if dvdPatch.IngestionError != nil {
+			if dvdPatch.Ingestion != nil {
 				fieldsSetInDvd++
 			}
 			if fieldsSetInDvd != 1 {
@@ -437,22 +454,14 @@ func (ms *MediaService) PatchMedia(ctx context.Context, request vmapi.PatchMedia
 				}
 			}
 
-			if dvdPatch.IngestionState != nil {
-				const query = "UPDATE media_dvds SET ingestion_state = $1 WHERE media_id = $2;"
-				rowsAffected, err := vmdb.Exec(ctx, tx, vmdb.Positional(query, string(*dvdPatch.IngestionState), id))
+			if dvdPatch.Ingestion != nil {
+				if err := validateDvdIngestion(dvdPatch.Ingestion); err != nil {
+					return nil, err
+				}
+				const query = "UPDATE media_dvds SET ingestion_state = $1, ingestion_error = $2 WHERE media_id = $3;"
+				rowsAffected, err := vmdb.Exec(ctx, tx, vmdb.Positional(query, string(dvdPatch.Ingestion.State), dvdPatch.Ingestion.ErrorMessage, id))
 				if err != nil {
 					return nil, fmt.Errorf("could not update ingestion_state: %w", err)
-				}
-				if rowsAffected == 0 {
-					return nil, vmerr.NotFound(fmt.Errorf("DVD details for media id %d not found", id))
-				}
-			}
-
-			if dvdPatch.IngestionError != nil {
-				const query = "UPDATE media_dvds SET ingestion_error = $1 WHERE media_id = $2;"
-				rowsAffected, err := vmdb.Exec(ctx, tx, vmdb.Positional(query, *dvdPatch.IngestionError, id))
-				if err != nil {
-					return nil, fmt.Errorf("could not update ingestion_error: %w", err)
 				}
 				if rowsAffected == 0 {
 					return nil, vmerr.NotFound(fmt.Errorf("DVD details for media id %d not found", id))

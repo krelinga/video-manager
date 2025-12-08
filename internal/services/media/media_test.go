@@ -81,8 +81,10 @@ func TestListMedia(t *testing.T) {
 									Fields: map[deep.Field]match.Matcher{
 										deep.NamedField("Dvd"): match.Pointer(match.Struct{
 											Fields: map[deep.Field]match.Matcher{
-												deep.NamedField("Path"):           match.Equal("/path/to/dvd"),
-												deep.NamedField("IngestionState"): match.Equal(vmapi.DVDIngestionState("pending")),
+												deep.NamedField("Path"): match.Equal("/path/to/dvd"),
+												deep.NamedField("Ingestion"): match.Equal(vmapi.DVDIngestion{
+													State: vmapi.DVDIngestionStatePending,
+												}),
 											},
 										}),
 									},
@@ -311,8 +313,10 @@ func TestPostMedia(t *testing.T) {
 						Fields: map[deep.Field]match.Matcher{
 							deep.NamedField("Dvd"): match.Pointer(match.Struct{
 								Fields: map[deep.Field]match.Matcher{
-									deep.NamedField("Path"):           match.Equal("/path/to/new/dvd"),
-									deep.NamedField("IngestionState"): match.Equal(vmapi.DVDIngestionState("pending")),
+									deep.NamedField("Path"): match.Equal("/path/to/new/dvd"),
+									deep.NamedField("Ingestion"): match.Equal(vmapi.DVDIngestion{
+										State: vmapi.DVDIngestionStatePending,
+									}),
 								},
 							}),
 						},
@@ -534,8 +538,9 @@ func TestGetMedia(t *testing.T) {
 						deep.NamedField("Dvd"): match.Pointer(match.Struct{
 							Fields: map[deep.Field]match.Matcher{
 								deep.NamedField("Path"): match.Equal("/path/to/get"),
-								deep.NamedField("IngestionState"): match.Equal(vmapi.DVDIngestionState("pending")),
-								deep.NamedField("IngestionError"): match.Nil(),
+								deep.NamedField("Ingestion"): match.Equal(vmapi.DVDIngestion{
+									State: vmapi.DVDIngestionStatePending,
+								}),
 							},
 						}),
 					},
@@ -868,11 +873,14 @@ func TestPatchMedia(t *testing.T) {
 	e.Run("patch dvd ingestion state", func(e exam.E) {
 		defer pg.Reset(e)
 		id := createMedia(e)
-		newState := vmapi.DVDIngestionState("done")
+		newState := vmapi.DVDIngestion{
+			State:        vmapi.DVDIngestionStateError,
+			ErrorMessage: Set("Ingestion failed"),
+		}
 		req := Request{
 			Id: id,
 			Body: &[]Patch{
-				{Dvd: &vmapi.DVDPatch{IngestionState: &newState}},
+				{Dvd: &vmapi.DVDPatch{Ingestion: &newState}},
 			},
 		}
 		resp, err := service.PatchMedia(ctx, req)
@@ -883,35 +891,7 @@ func TestPatchMedia(t *testing.T) {
 					Fields: map[deep.Field]match.Matcher{
 						deep.NamedField("Dvd"): match.Pointer(match.Struct{
 							Fields: map[deep.Field]match.Matcher{
-								deep.NamedField("IngestionState"): match.Equal(vmapi.DVDIngestionState("done")),
-							},
-						}),
-					},
-				}),
-			},
-		})).Log(resp)
-	})
-	// TODO: this is a little unrealistic in that ingestion error would not be set without
-	// changing ingestion state.  Add a DB constraint and fix this test.
-	e.Run("patch dvd ingestion error", func(e exam.E) {
-		defer pg.Reset(e)
-		id := createMedia(e)
-		errMsg := "ingestion failed"
-		req := Request{
-			Id: id,
-			Body: &[]Patch{
-				{Dvd: &vmapi.DVDPatch{IngestionError: &errMsg}},
-			},
-		}
-		resp, err := service.PatchMedia(ctx, req)
-		exam.Nil(e, env, err).Log(err).Must()
-		exam.Match(e, env, resp, match.Interface(match.Struct{
-			Fields: map[deep.Field]match.Matcher{
-				deep.NamedField("Details"): match.Pointer(match.Struct{
-					Fields: map[deep.Field]match.Matcher{
-						deep.NamedField("Dvd"): match.Pointer(match.Struct{
-							Fields: map[deep.Field]match.Matcher{
-								deep.NamedField("IngestionError"): match.Pointer(match.Equal("ingestion failed")),
+								deep.NamedField("Ingestion"): match.Equal(newState),
 							},
 						}),
 					},
@@ -923,11 +903,13 @@ func TestPatchMedia(t *testing.T) {
 		defer pg.Reset(e)
 		id := createMedia(e)
 		newPath := "/new/path"
-		newState := vmapi.DVDIngestionState("done")
+		newState := vmapi.DVDIngestion{
+			State: vmapi.DVDIngestionStateDone,
+		}
 		req := Request{
 			Id: id,
 			Body: &[]Patch{
-				{Dvd: &vmapi.DVDPatch{Path: &newPath, IngestionState: &newState}},
+				{Dvd: &vmapi.DVDPatch{Path: &newPath, Ingestion: &newState}},
 			},
 		}
 		_, err := service.PatchMedia(ctx, req)
