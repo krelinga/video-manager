@@ -168,7 +168,7 @@ func (s *CatalogService) PostCard(ctx context.Context, request vmapi.PostCardReq
 		}
 	}
 
-	card, err := getCard(ctx, s.Db, cardId)
+	card, err := getCard(ctx, tx, cardId)
 	if err != nil {
 		return nil, err
 	}
