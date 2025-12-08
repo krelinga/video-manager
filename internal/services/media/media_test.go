@@ -870,7 +870,7 @@ func TestPatchMedia(t *testing.T) {
 		_, err = service.PatchMedia(ctx, req)
 		exam.Match(e, env, err, vmtest.HttpError(409)).Log(err)
 	})
-	e.Run("patch dvd ingestion state", func(e exam.E) {
+	e.Run("patch dvd ingestion state successful", func(e exam.E) {
 		defer pg.Reset(e)
 		id := createMedia(e)
 		newState := vmapi.DVDIngestion{
@@ -898,6 +898,73 @@ func TestPatchMedia(t *testing.T) {
 				}),
 			},
 		})).Log(resp)
+	})
+	e.Run("patch dvd ingestion state fails when state is error and error message is not set", func(e exam.E) {
+		defer pg.Reset(e)
+		id := createMedia(e)
+		newState := vmapi.DVDIngestion{
+			State: vmapi.DVDIngestionStateError,
+		}
+		req := Request{
+			Id: id,
+			Body: &[]Patch{
+				{Dvd: &vmapi.DVDPatch{Ingestion: &newState}},
+			},
+		}
+		resp, err := service.PatchMedia(ctx, req)
+		exam.Match(e, env, err, vmtest.HttpError(400)).Log(err)
+		exam.Nil(e, env, resp).Log(resp)
+	})
+	e.Run("patch dvd ingestion state fails when state is error and error message is empty string", func(e exam.E) {
+		defer pg.Reset(e)
+		id := createMedia(e)
+		newState := vmapi.DVDIngestion{
+			State: vmapi.DVDIngestionStateError,
+			ErrorMessage: Set(""),
+		}
+		req := Request{
+			Id: id,
+			Body: &[]Patch{
+				{Dvd: &vmapi.DVDPatch{Ingestion: &newState}},
+			},
+		}
+		resp, err := service.PatchMedia(ctx, req)
+		exam.Match(e, env, err, vmtest.HttpError(400)).Log(err)
+		exam.Nil(e, env, resp).Log(resp)
+	})
+	e.Run("patch dvd ingestion state fails when state is pending and error message is set", func(e exam.E) {
+		defer pg.Reset(e)
+		id := createMedia(e)
+		newState := vmapi.DVDIngestion{
+			State: vmapi.DVDIngestionStatePending,
+			ErrorMessage: Set("Should not be set"),
+		}
+		req := Request{
+			Id: id,
+			Body: &[]Patch{
+				{Dvd: &vmapi.DVDPatch{Ingestion: &newState}},
+			},
+		}
+		resp, err := service.PatchMedia(ctx, req)
+		exam.Match(e, env, err, vmtest.HttpError(400)).Log(err)
+		exam.Nil(e, env, resp).Log(resp)
+	})
+	e.Run("patch dvd ingestion state fails when state is done and error message is set", func(e exam.E) {
+		defer pg.Reset(e)
+		id := createMedia(e)
+		newState := vmapi.DVDIngestion{
+			State: vmapi.DVDIngestionStateDone,
+			ErrorMessage: Set("Should not be set"),
+		}
+		req := Request{
+			Id: id,
+			Body: &[]Patch{
+				{Dvd: &vmapi.DVDPatch{Ingestion: &newState}},
+			},
+		}
+		resp, err := service.PatchMedia(ctx, req)
+		exam.Match(e, env, err, vmtest.HttpError(400)).Log(err)
+		exam.Nil(e, env, resp).Log(resp)
 	})
 	e.Run("patch dvd multiple fields in one patch", func(e exam.E) {
 		defer pg.Reset(e)
