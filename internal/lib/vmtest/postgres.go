@@ -72,7 +72,7 @@ func (p *Postgres) DbRunner(e exam.E) vmdb.DbRunner {
 	e.Helper()
 	p.dbOnce.Do(func() {
 		var err error
-		p.db, err = vmdb.New(p.URL())
+		p.db, err = vmdb.New(p.URL(), vmdb.WithSimpleProtocol())
 		if err != nil {
 			e.Fatalf("failed to create vmdb DbRunner: %v", err)
 		}

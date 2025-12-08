@@ -68,8 +68,17 @@ func (t pgxTxRunner) Rollback(ctx context.Context) {
 	}
 }
 
-func New(url string) (DbRunner, error) {
-	pool, err := pgxpool.New(context.Background(), url)
+func New(url string, options ...Option) (DbRunner, error) {
+	cfg, err := pgxpool.ParseConfig(url)
+	if err != nil {
+		// Not using functions from vmerr here because this should only be called during startup.
+		return nil, fmt.Errorf("could not parse connection url %q: %w", url, err)
+	}
+	for _, opt := range options {
+		opt.apply(cfg)
+	}
+
+	pool, err := pgxpool.NewWithConfig(context.Background(), cfg)
 	// Not using functions from vmerr here because this should only be called during startup.
 	if err != nil {
 		return nil, err
