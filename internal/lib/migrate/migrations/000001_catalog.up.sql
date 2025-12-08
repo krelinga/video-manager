@@ -108,7 +108,11 @@ CREATE TABLE IF NOT EXISTS media_dvds (
     ingestion_state media_dvd_ingestion_state NOT NULL DEFAULT 'pending',
     ingestion_error TEXT,
     CONSTRAINT fk_media_dvds_media_id 
-        FOREIGN KEY (media_id) REFERENCES media(id) ON DELETE CASCADE
+        FOREIGN KEY (media_id) REFERENCES media(id) ON DELETE CASCADE,
+    CHECK (
+        (ingestion_state = 'error' AND ingestion_error IS NOT NULL) OR
+        (ingestion_state <> 'error' AND ingestion_error IS NULL)
+    )
 );
 
 -- A trigger to ensure that the media record is deleted when the corresponding media_dvd is deleted.
