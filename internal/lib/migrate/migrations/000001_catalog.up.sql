@@ -101,6 +101,7 @@ END
 $$;
 
 -- Create media_dvds table
+-- TODO: add unique constraint on path.
 CREATE TABLE IF NOT EXISTS media_dvds (
     media_id INTEGER PRIMARY KEY,
     path TEXT NOT NULL CHECK (path <> ''),
