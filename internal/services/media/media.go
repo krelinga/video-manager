@@ -335,6 +335,18 @@ func (ms *MediaService) PatchMedia(ctx context.Context, request vmapi.PatchMedia
 			}
 		}
 
+		if patch.ClearMediaSetId != nil && *patch.ClearMediaSetId {
+			fieldsSet++
+			const query = "UPDATE media SET media_set_id = NULL WHERE id = $1;"
+			rowsAffected, err := vmdb.Exec(ctx, tx, vmdb.Positional(query, id))
+			if err != nil {
+				return nil, fmt.Errorf("could not clear media_set_id: %w", err)
+			}
+			if rowsAffected == 0 {
+				return nil, vmerr.NotFound(fmt.Errorf("media with id %d not found", id))
+			}
+		}
+
 		if patch.AddCardId != nil {
 			fieldsSet++
 			cardId := *patch.AddCardId
