@@ -168,13 +168,12 @@ func (s *CatalogService) PostCard(ctx context.Context, request vmapi.PostCardReq
 		}
 	}
 
-	if err := tx.Commit(ctx); err != nil {
+	card, err := getCard(ctx, s.Db, cardId)
+	if err != nil {
 		return nil, err
 	}
 
-	// Fetch and return the created card
-	card, err := getCard(ctx, s.Db, cardId)
-	if err != nil {
+	if err := tx.Commit(ctx); err != nil {
 		return nil, err
 	}
 
