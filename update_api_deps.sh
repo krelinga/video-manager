@@ -13,7 +13,7 @@ go get "github.com/krelinga/video-manager-api/go/vmapi@latest"
 # Check if there are any changes after updating dependencies
 if ! git diff-index --quiet HEAD --; then
     go mod tidy
-    echo "Protobuf dependencies have been updated. Committing changes..."
+    echo "API dependencies have been updated. Committing changes..."
     git add .
     git commit -m "Update api dependencies."
 else
