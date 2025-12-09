@@ -10,7 +10,7 @@ import (
 	"github.com/krelinga/video-manager/internal/lib/vmerr"
 )
 
-func HttpError(code int) match.Matcher {
+func HttpError(problem vmerr.Problem) match.Matcher {
 	return match.Func(func(env deep.Env, vals match.Vals) match.Result {
 		got := match.Want1[error](vals)
 		var httpErr *vmerr.HttpError
@@ -18,9 +18,9 @@ func HttpError(code int) match.Matcher {
 			text := "expected vmerr.HttpError, got different error type"
 			return match.NewResult(false, text)
 		}
-		if httpErr.StatusCode != code {
-			text := "expected HTTP code %d, got %d"
-			text = fmt.Sprintf(text, code, httpErr.StatusCode)
+		if httpErr.Problem != problem {
+			text := "expected problem %s, got %s"
+			text = fmt.Sprintf(text, problem, httpErr.Problem)
 			return match.NewResult(false, text)
 		}
 		return match.NewResult(true, "")

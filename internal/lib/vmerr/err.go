@@ -5,7 +5,18 @@ import (
 	"fmt"
 )
 
+
+type Problem string
+
+const (
+	ProblemNotFound      Problem = "/errors/not-found"
+	ProblemBadRequest    Problem = "/errors/bad-request"
+	ProblemInternalError Problem = "/errors/internal-error"
+	ProblemConflict      Problem = "/errors/conflict"
+)
+
 type HttpError struct {
+	Problem Problem
 	StatusCode int
 	Wrapped    error
 }
@@ -33,6 +44,7 @@ func NotFound(err error) error {
 	}
 	checkAlreadyWrapped(err)
 	return &HttpError{
+		Problem:    ProblemNotFound,
 		StatusCode: 404,
 		Wrapped:    err,
 	}
@@ -44,6 +56,7 @@ func BadRequest(err error) error {
 	}
 	checkAlreadyWrapped(err)
 	return &HttpError{
+		Problem:    ProblemBadRequest,
 		StatusCode: 400,
 		Wrapped:    err,
 	}
@@ -55,6 +68,7 @@ func InternalError(err error) error {
 	}
 	checkAlreadyWrapped(err)
 	return &HttpError{
+		Problem:    ProblemInternalError,
 		StatusCode: 500,
 		Wrapped:    err,
 	}
@@ -66,6 +80,7 @@ func Conflict(err error) error {
 	}
 	checkAlreadyWrapped(err)
 	return &HttpError{
+		Problem:    ProblemConflict,
 		StatusCode: 409,
 		Wrapped:    err,
 	}
