@@ -8,6 +8,7 @@ import (
 	"github.com/krelinga/go-libs/exam"
 	"github.com/krelinga/go-libs/match"
 	"github.com/krelinga/video-manager-api/go/vmapi"
+	"github.com/krelinga/video-manager/internal/lib/vmerr"
 	"github.com/krelinga/video-manager/internal/lib/vmtest"
 )
 
@@ -224,7 +225,7 @@ func TestListCards(t *testing.T) {
 			},
 		}
 		_, err := service.ListCards(ctx, listReq)
-		exam.Match(e, env, err, vmtest.HttpError(400)).Log(err)
+		exam.Match(e, env, err, vmtest.HttpError(vmerr.ProblemBadRequest)).Log(err)
 	})
 }
 
@@ -280,7 +281,7 @@ func TestPostCard(t *testing.T) {
 			setup: func(e exam.E) *RequestBody {
 				return nil
 			},
-			wantErr:  vmtest.HttpError(400),
+			wantErr:  vmtest.HttpError(vmerr.ProblemBadRequest),
 			wantResp: match.Nil(),
 		},
 		{
@@ -294,7 +295,7 @@ func TestPostCard(t *testing.T) {
 					},
 				}
 			},
-			wantErr:  vmtest.HttpError(400),
+			wantErr:  vmtest.HttpError(vmerr.ProblemBadRequest),
 			wantResp: match.Nil(),
 		},
 		{
@@ -320,7 +321,7 @@ func TestPostCard(t *testing.T) {
 					},
 				}
 			},
-			wantErr:  vmtest.HttpError(409),
+			wantErr:  vmtest.HttpError(vmerr.ProblemConflict),
 			wantResp: match.Nil(),
 		},
 		{
@@ -340,7 +341,7 @@ func TestPostCard(t *testing.T) {
 					},
 				}
 			},
-			wantErr:  vmtest.HttpError(400),
+			wantErr:  vmtest.HttpError(vmerr.ProblemBadRequest),
 			wantResp: match.Nil(),
 		},
 		{
@@ -352,7 +353,7 @@ func TestPostCard(t *testing.T) {
 					Details: vmapi.CardPostDetails{},
 				}
 			},
-			wantErr:  vmtest.HttpError(400),
+			wantErr:  vmtest.HttpError(vmerr.ProblemBadRequest),
 			wantResp: match.Nil(),
 		},
 		{
@@ -463,7 +464,7 @@ func TestPostCard(t *testing.T) {
 					},
 				}
 			},
-			wantErr:  vmtest.HttpError(400),
+			wantErr:  vmtest.HttpError(vmerr.ProblemBadRequest),
 			wantResp: match.Nil(),
 		},
 		{
@@ -481,7 +482,7 @@ func TestPostCard(t *testing.T) {
 					},
 				}
 			},
-			wantErr:  vmtest.HttpError(400),
+			wantErr:  vmtest.HttpError(vmerr.ProblemBadRequest),
 			wantResp: match.Nil(),
 		},
 	}
@@ -527,7 +528,7 @@ func TestDeleteCard(t *testing.T) {
 			setup: func(e exam.E) uint32 {
 				return 0
 			},
-			wantErr: vmtest.HttpError(400),
+			wantErr: vmtest.HttpError(vmerr.ProblemBadRequest),
 		},
 		{
 			loc:  exam.Here(),
@@ -535,7 +536,7 @@ func TestDeleteCard(t *testing.T) {
 			setup: func(e exam.E) uint32 {
 				return 9999
 			},
-			wantErr: vmtest.HttpError(404),
+			wantErr: vmtest.HttpError(vmerr.ProblemNotFound),
 		},
 		{
 			loc:  exam.Here(),
@@ -661,7 +662,7 @@ func TestGetCard(t *testing.T) {
 			setup: func(e exam.E) uint32 {
 				return 0
 			},
-			wantErr:  vmtest.HttpError(400),
+			wantErr:  vmtest.HttpError(vmerr.ProblemBadRequest),
 			wantResp: match.Nil(),
 		},
 		{
@@ -670,7 +671,7 @@ func TestGetCard(t *testing.T) {
 			setup: func(e exam.E) uint32 {
 				return 9999
 			},
-			wantErr:  vmtest.HttpError(404),
+			wantErr:  vmtest.HttpError(vmerr.ProblemNotFound),
 			wantResp: match.Nil(),
 		},
 		{
@@ -893,7 +894,7 @@ func TestPatchCard(t *testing.T) {
 				return 0
 			},
 			patches:  []Patch{},
-			wantErr:  vmtest.HttpError(400),
+			wantErr:  vmtest.HttpError(vmerr.ProblemBadRequest),
 			wantResp: match.Nil(),
 		},
 		{
@@ -903,7 +904,7 @@ func TestPatchCard(t *testing.T) {
 				return 9999
 			},
 			patches:  []Patch{{Name: Set("New Name")}},
-			wantErr:  vmtest.HttpError(404),
+			wantErr:  vmtest.HttpError(vmerr.ProblemNotFound),
 			wantResp: match.Nil(),
 		},
 		{
@@ -911,7 +912,7 @@ func TestPatchCard(t *testing.T) {
 			name:     "no patch fields set",
 			setup:    createMovieCard,
 			patches:  []Patch{{}},
-			wantErr:  vmtest.HttpError(400),
+			wantErr:  vmtest.HttpError(vmerr.ProblemBadRequest),
 			wantResp: match.Nil(),
 		},
 		{
@@ -924,7 +925,7 @@ func TestPatchCard(t *testing.T) {
 					Note: Set("Updated Note"),
 				},
 			},
-			wantErr:  vmtest.HttpError(400),
+			wantErr:  vmtest.HttpError(vmerr.ProblemBadRequest),
 			wantResp: match.Nil(),
 		},
 		{
@@ -936,7 +937,7 @@ func TestPatchCard(t *testing.T) {
 					Name: Set(""),
 				},
 			},
-			wantErr:  vmtest.HttpError(400),
+			wantErr:  vmtest.HttpError(vmerr.ProblemBadRequest),
 			wantResp: match.Nil(),
 		},
 		{
@@ -1048,7 +1049,7 @@ func TestPatchCard(t *testing.T) {
 					Movie: &vmapi.MoviePatch{},
 				},
 			},
-			wantErr:  vmtest.HttpError(400),
+			wantErr:  vmtest.HttpError(vmerr.ProblemBadRequest),
 			wantResp: match.Nil(),
 		},
 		{
@@ -1063,7 +1064,7 @@ func TestPatchCard(t *testing.T) {
 					},
 				},
 			},
-			wantErr:  vmtest.HttpError(400),
+			wantErr:  vmtest.HttpError(vmerr.ProblemBadRequest),
 			wantResp: match.Nil(),
 		},
 		{
@@ -1077,7 +1078,7 @@ func TestPatchCard(t *testing.T) {
 					},
 				},
 			},
-			wantErr:  vmtest.HttpError(400),
+			wantErr:  vmtest.HttpError(vmerr.ProblemBadRequest),
 			wantResp: match.Nil(),
 		},
 		{
@@ -1169,7 +1170,7 @@ func TestPatchCard(t *testing.T) {
 					},
 				},
 			},
-			wantErr:  vmtest.HttpError(400),
+			wantErr:  vmtest.HttpError(vmerr.ProblemBadRequest),
 			wantResp: match.Nil(),
 		},
 		{
@@ -1181,7 +1182,7 @@ func TestPatchCard(t *testing.T) {
 					MovieEdition: &vmapi.MovieEditionPatch{},
 				},
 			},
-			wantErr:  vmtest.HttpError(400),
+			wantErr:  vmtest.HttpError(vmerr.ProblemBadRequest),
 			wantResp: match.Nil(),
 		},
 		{
@@ -1195,7 +1196,7 @@ func TestPatchCard(t *testing.T) {
 					},
 				},
 			},
-			wantErr:  vmtest.HttpError(400),
+			wantErr:  vmtest.HttpError(vmerr.ProblemBadRequest),
 			wantResp: match.Nil(),
 		},
 		{

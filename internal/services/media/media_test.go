@@ -8,6 +8,7 @@ import (
 	"github.com/krelinga/go-libs/exam"
 	"github.com/krelinga/go-libs/match"
 	"github.com/krelinga/video-manager-api/go/vmapi"
+	"github.com/krelinga/video-manager/internal/lib/vmerr"
 	"github.com/krelinga/video-manager/internal/lib/vmtest"
 	"github.com/krelinga/video-manager/internal/services/catalog"
 	"github.com/krelinga/video-manager/internal/services/media"
@@ -199,7 +200,7 @@ func TestListMedia(t *testing.T) {
 			},
 		}
 		_, err := service.ListMedia(ctx, listReq)
-		exam.Match(e, env, err, vmtest.HttpError(400)).Log(err)
+		exam.Match(e, env, err, vmtest.HttpError(vmerr.ProblemBadRequest)).Log(err)
 	})
 }
 
@@ -244,7 +245,7 @@ func TestPostMedia(t *testing.T) {
 			setup: func(e exam.E) *RequestBody {
 				return nil
 			},
-			wantErr:  vmtest.HttpError(400),
+			wantErr:  vmtest.HttpError(vmerr.ProblemBadRequest),
 			wantResp: match.Nil(),
 		},
 		{
@@ -255,7 +256,7 @@ func TestPostMedia(t *testing.T) {
 					Details: vmapi.MediaPostDetails{},
 				}
 			},
-			wantErr:  vmtest.HttpError(400),
+			wantErr:  vmtest.HttpError(vmerr.ProblemBadRequest),
 			wantResp: match.Nil(),
 		},
 		{
@@ -268,7 +269,7 @@ func TestPostMedia(t *testing.T) {
 					},
 				}
 			},
-			wantErr:  vmtest.HttpError(400),
+			wantErr:  vmtest.HttpError(vmerr.ProblemBadRequest),
 			wantResp: match.Nil(),
 		},
 		{
@@ -292,7 +293,7 @@ func TestPostMedia(t *testing.T) {
 					},
 				}
 			},
-			wantErr:  vmtest.HttpError(409),
+			wantErr:  vmtest.HttpError(vmerr.ProblemConflict),
 			wantResp: match.Nil(),
 		},
 		{
@@ -385,7 +386,7 @@ func TestPostMedia(t *testing.T) {
 					},
 				}
 			},
-			wantErr:  vmtest.HttpError(400),
+			wantErr:  vmtest.HttpError(vmerr.ProblemBadRequest),
 			wantResp: match.Nil(),
 		},
 	}
@@ -431,7 +432,7 @@ func TestDeleteMedia(t *testing.T) {
 			setup: func(e exam.E) uint32 {
 				return 0
 			},
-			wantErr: vmtest.HttpError(400),
+			wantErr: vmtest.HttpError(vmerr.ProblemBadRequest),
 		},
 		{
 			loc:  exam.Here(),
@@ -439,7 +440,7 @@ func TestDeleteMedia(t *testing.T) {
 			setup: func(e exam.E) uint32 {
 				return 9999
 			},
-			wantErr: vmtest.HttpError(404),
+			wantErr: vmtest.HttpError(vmerr.ProblemNotFound),
 		},
 		{
 			loc:  exam.Here(),
@@ -500,7 +501,7 @@ func TestGetMedia(t *testing.T) {
 			Id: 0,
 		}
 		_, err := service.GetMedia(ctx, req)
-		exam.Match(e, env, err, vmtest.HttpError(400)).Log(err)
+		exam.Match(e, env, err, vmtest.HttpError(vmerr.ProblemBadRequest)).Log(err)
 	})
 	e.Run("non-existent ID", func(e exam.E) {
 		defer pg.Reset(e)
@@ -508,7 +509,7 @@ func TestGetMedia(t *testing.T) {
 			Id: 9999,
 		}
 		_, err := service.GetMedia(ctx, req)
-		exam.Match(e, env, err, vmtest.HttpError(404)).Log(err)
+		exam.Match(e, env, err, vmtest.HttpError(vmerr.ProblemNotFound)).Log(err)
 	})
 	e.Run("successful get media", func(e exam.E) {
 		defer pg.Reset(e)
@@ -642,7 +643,7 @@ func TestPatchMedia(t *testing.T) {
 			Body: &[]Patch{},
 		}
 		_, err := service.PatchMedia(ctx, req)
-		exam.Match(e, env, err, vmtest.HttpError(400)).Log(err)
+		exam.Match(e, env, err, vmtest.HttpError(vmerr.ProblemBadRequest)).Log(err)
 	})
 	e.Run("non-existent ID", func(e exam.E) {
 		defer pg.Reset(e)
@@ -654,7 +655,7 @@ func TestPatchMedia(t *testing.T) {
 			},
 		}
 		_, err := service.PatchMedia(ctx, req)
-		exam.Match(e, env, err, vmtest.HttpError(404)).Log(err)
+		exam.Match(e, env, err, vmtest.HttpError(vmerr.ProblemNotFound)).Log(err)
 	})
 	e.Run("nil body", func(e exam.E) {
 		defer pg.Reset(e)
@@ -664,7 +665,7 @@ func TestPatchMedia(t *testing.T) {
 			Body: nil,
 		}
 		_, err := service.PatchMedia(ctx, req)
-		exam.Match(e, env, err, vmtest.HttpError(400)).Log(err)
+		exam.Match(e, env, err, vmtest.HttpError(vmerr.ProblemBadRequest)).Log(err)
 	})
 	e.Run("empty patch", func(e exam.E) {
 		defer pg.Reset(e)
@@ -676,7 +677,7 @@ func TestPatchMedia(t *testing.T) {
 			},
 		}
 		_, err := service.PatchMedia(ctx, req)
-		exam.Match(e, env, err, vmtest.HttpError(400)).Log(err)
+		exam.Match(e, env, err, vmtest.HttpError(vmerr.ProblemBadRequest)).Log(err)
 	})
 	e.Run("multiple fields in one patch", func(e exam.E) {
 		defer pg.Reset(e)
@@ -693,7 +694,7 @@ func TestPatchMedia(t *testing.T) {
 			},
 		}
 		_, err := service.PatchMedia(ctx, req)
-		exam.Match(e, env, err, vmtest.HttpError(400)).Log(err)
+		exam.Match(e, env, err, vmtest.HttpError(vmerr.ProblemBadRequest)).Log(err)
 	})
 	e.Run("patch note", func(e exam.E) {
 		defer pg.Reset(e)
@@ -746,7 +747,7 @@ func TestPatchMedia(t *testing.T) {
 			},
 		}
 		_, err := service.PatchMedia(ctx, req)
-		exam.Match(e, env, err, vmtest.HttpError(400)).Log(err)
+		exam.Match(e, env, err, vmtest.HttpError(vmerr.ProblemBadRequest)).Log(err)
 	})
 	e.Run("add duplicate card link", func(e exam.E) {
 		defer pg.Reset(e)
@@ -764,7 +765,7 @@ func TestPatchMedia(t *testing.T) {
 
 		// Try to add same card again
 		_, err = service.PatchMedia(ctx, req)
-		exam.Match(e, env, err, vmtest.HttpError(409)).Log(err)
+		exam.Match(e, env, err, vmtest.HttpError(vmerr.ProblemConflict)).Log(err)
 	})
 	e.Run("remove card link", func(e exam.E) {
 		defer pg.Reset(e)
@@ -804,7 +805,7 @@ func TestPatchMedia(t *testing.T) {
 			},
 		}
 		_, err := service.PatchMedia(ctx, req)
-		exam.Match(e, env, err, vmtest.HttpError(400)).Log(err)
+		exam.Match(e, env, err, vmtest.HttpError(vmerr.ProblemBadRequest)).Log(err)
 	})
 	e.Run("patch dvd path", func(e exam.E) {
 		defer pg.Reset(e)
@@ -843,7 +844,7 @@ func TestPatchMedia(t *testing.T) {
 			},
 		}
 		_, err := service.PatchMedia(ctx, req)
-		exam.Match(e, env, err, vmtest.HttpError(400)).Log(err)
+		exam.Match(e, env, err, vmtest.HttpError(vmerr.ProblemBadRequest)).Log(err)
 	})
 	e.Run("patch dvd path to duplicate", func(e exam.E) {
 		defer pg.Reset(e)
@@ -868,7 +869,7 @@ func TestPatchMedia(t *testing.T) {
 			},
 		}
 		_, err = service.PatchMedia(ctx, req)
-		exam.Match(e, env, err, vmtest.HttpError(409)).Log(err)
+		exam.Match(e, env, err, vmtest.HttpError(vmerr.ProblemConflict)).Log(err)
 	})
 	e.Run("patch dvd ingestion state successful", func(e exam.E) {
 		defer pg.Reset(e)
@@ -912,7 +913,7 @@ func TestPatchMedia(t *testing.T) {
 			},
 		}
 		resp, err := service.PatchMedia(ctx, req)
-		exam.Match(e, env, err, vmtest.HttpError(400)).Log(err)
+		exam.Match(e, env, err, vmtest.HttpError(vmerr.ProblemBadRequest)).Log(err)
 		exam.Nil(e, env, resp).Log(resp)
 	})
 	e.Run("patch dvd ingestion state fails when state is error and error message is empty string", func(e exam.E) {
@@ -929,7 +930,7 @@ func TestPatchMedia(t *testing.T) {
 			},
 		}
 		resp, err := service.PatchMedia(ctx, req)
-		exam.Match(e, env, err, vmtest.HttpError(400)).Log(err)
+		exam.Match(e, env, err, vmtest.HttpError(vmerr.ProblemBadRequest)).Log(err)
 		exam.Nil(e, env, resp).Log(resp)
 	})
 	e.Run("patch dvd ingestion state fails when state is pending and error message is set", func(e exam.E) {
@@ -946,7 +947,7 @@ func TestPatchMedia(t *testing.T) {
 			},
 		}
 		resp, err := service.PatchMedia(ctx, req)
-		exam.Match(e, env, err, vmtest.HttpError(400)).Log(err)
+		exam.Match(e, env, err, vmtest.HttpError(vmerr.ProblemBadRequest)).Log(err)
 		exam.Nil(e, env, resp).Log(resp)
 	})
 	e.Run("patch dvd ingestion state fails when state is done and error message is set", func(e exam.E) {
@@ -963,7 +964,7 @@ func TestPatchMedia(t *testing.T) {
 			},
 		}
 		resp, err := service.PatchMedia(ctx, req)
-		exam.Match(e, env, err, vmtest.HttpError(400)).Log(err)
+		exam.Match(e, env, err, vmtest.HttpError(vmerr.ProblemBadRequest)).Log(err)
 		exam.Nil(e, env, resp).Log(resp)
 	})
 	e.Run("patch dvd multiple fields in one patch", func(e exam.E) {
@@ -980,6 +981,6 @@ func TestPatchMedia(t *testing.T) {
 			},
 		}
 		_, err := service.PatchMedia(ctx, req)
-		exam.Match(e, env, err, vmtest.HttpError(400)).Log(err)
+		exam.Match(e, env, err, vmtest.HttpError(vmerr.ProblemBadRequest)).Log(err)
 	})
 }

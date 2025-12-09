@@ -8,6 +8,7 @@ import (
 	"github.com/krelinga/go-libs/exam"
 	"github.com/krelinga/go-libs/match"
 	"github.com/krelinga/video-manager-api/go/vmapi"
+	"github.com/krelinga/video-manager/internal/lib/vmerr"
 	"github.com/krelinga/video-manager/internal/lib/vmtest"
 )
 
@@ -134,7 +135,7 @@ func TestListMovieEditionKinds(t *testing.T) {
 			},
 		}
 		_, err := service.ListMovieEditionKinds(ctx, listReq)
-		exam.Match(e, env, err, vmtest.HttpError(400)).Log(err)
+		exam.Match(e, env, err, vmtest.HttpError(vmerr.ProblemBadRequest)).Log(err)
 	})
 }
 
@@ -166,7 +167,7 @@ func TestPostMovieEditionKind(t *testing.T) {
 					Name: "",
 				},
 			},
-			wantErr: vmtest.HttpError(400),
+			wantErr: vmtest.HttpError(vmerr.ProblemBadRequest),
 			wantResp: match.Nil(),
 			check: func(e exam.E) {
 				listReq := vmapi.ListMovieEditionKindsRequestObject{}
@@ -192,7 +193,7 @@ func TestPostMovieEditionKind(t *testing.T) {
 					Name: "original name",
 				},
 			},
-			wantErr: vmtest.HttpError(409),
+			wantErr: vmtest.HttpError(vmerr.ProblemConflict),
 			wantResp: match.Nil(),
 			check: func(e exam.E) {
 				listReq := vmapi.ListMovieEditionKindsRequestObject{}
@@ -345,7 +346,7 @@ func DeleteMovieEditionKindTest(t *testing.T) {
 			setup: func(e exam.E) uint32 {
 				return 9999
 			},
-			wantErr: vmtest.HttpError(404),
+			wantErr: vmtest.HttpError(vmerr.ProblemNotFound),
 		},
 		{
 			loc: exam.Here(),
@@ -410,7 +411,7 @@ func GetMovieEditionKindTest(t *testing.T) {
 			setup: func(e exam.E) uint32 {
 				return 9999
 			},
-			wantErr: vmtest.HttpError(404),
+			wantErr: vmtest.HttpError(vmerr.ProblemNotFound),
 			wantResp: match.Nil(),
 		},
 		{
@@ -480,7 +481,7 @@ func TestPatchMovieEditionKind(t *testing.T) {
 				return 9999
 			},
 			patches: []Patch{},
-			wantErr: vmtest.HttpError(404),
+			wantErr: vmtest.HttpError(vmerr.ProblemNotFound),
 			wantResp: match.Nil(),
 		},
 		{
@@ -499,7 +500,7 @@ func TestPatchMovieEditionKind(t *testing.T) {
 			patches: []Patch{
 				{},
 			},
-			wantErr: vmtest.HttpError(400),
+			wantErr: vmtest.HttpError(vmerr.ProblemBadRequest),
 			wantResp: match.Nil(),
 		},
 		{
@@ -521,7 +522,7 @@ func TestPatchMovieEditionKind(t *testing.T) {
 					IsDefault: Set(true),
 				},
 			},
-			wantErr: vmtest.HttpError(400),
+			wantErr: vmtest.HttpError(vmerr.ProblemBadRequest),
 			wantResp: match.Nil(),
 		},
 		{
