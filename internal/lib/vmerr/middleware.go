@@ -26,7 +26,10 @@ func Middleware(w http.ResponseWriter, r *http.Request, err error) {
 	w.WriteHeader(httpErr.StatusCode)
 
 	errJson := vmapi.ErrorResponse{
-		Message: httpErr.Error(),
+		Type: "/errors/todo",
+		Title: "TODO: set title",
+		Status: httpErr.StatusCode,
+		Detail: httpErr.Error(),
 	}
 	if err := json.NewEncoder(w).Encode(errJson); err != nil {
 		http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
