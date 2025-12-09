@@ -10,7 +10,7 @@ import (
 type WorkerFunc func(context.Context) (bool, error)
 
 func StartWorker(ctx context.Context, channel Channel, events <-chan Event, worker WorkerFunc) {
-	needScan := make(chan Event)
+	needScan := make(chan Event, 1)
 	// needScan is never closed because we rely on ctx.Done() to end the worker.
 
 	// Run worker loop.
