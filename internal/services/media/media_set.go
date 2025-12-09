@@ -288,7 +288,7 @@ func (ms *MediaService) PatchMediaSet(ctx context.Context, request vmapi.PatchMe
 				return nil, fmt.Errorf("could not check for existing link: %w", err)
 			}
 			if linkCount > 0 {
-				return nil, vmerr.Conflict(fmt.Errorf("card with id %d is already linked to this media set", cardId))
+				return nil, vmerr.AlreadyExists(fmt.Errorf("card with id %d is already linked to this media set", cardId))
 			}
 
 			const insertLinkQuery = "INSERT INTO media_sets_x_cards (media_set_id, card_id) VALUES ($1, $2)"

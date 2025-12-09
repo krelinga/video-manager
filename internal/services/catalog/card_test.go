@@ -321,7 +321,7 @@ func TestPostCard(t *testing.T) {
 					},
 				}
 			},
-			wantErr:  vmtest.HttpError(vmerr.ProblemConflict),
+			wantErr:  vmtest.HttpError(vmerr.ProblemAlreadyExists),
 			wantResp: match.Nil(),
 		},
 		{

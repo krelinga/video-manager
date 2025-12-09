@@ -545,7 +545,7 @@ func TestPatchMediaSet(t *testing.T) {
 	e.Run("zero ID", func(e exam.E) {
 		defer pg.Reset(e)
 		req := Request{
-			Id:   0,
+			Id: 0,
 			Body: &[]Patch{
 				{Name: Set("new name")},
 			},
@@ -734,7 +734,7 @@ func TestPatchMediaSet(t *testing.T) {
 
 		// Try to add same card again
 		_, err = service.PatchMediaSet(ctx, req)
-		exam.Match(e, env, err, vmtest.HttpError(vmerr.ProblemConflict)).Log(err)
+		exam.Match(e, env, err, vmtest.HttpError(vmerr.ProblemAlreadyExists)).Log(err)
 	})
 	e.Run("remove card link", func(e exam.E) {
 		defer pg.Reset(e)

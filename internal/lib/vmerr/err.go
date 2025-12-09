@@ -5,18 +5,17 @@ import (
 	"fmt"
 )
 
-
 type Problem string
 
 const (
 	ProblemNotFound      Problem = "/errors/not-found"
 	ProblemBadRequest    Problem = "/errors/bad-request"
 	ProblemInternalError Problem = "/errors/internal-error"
-	ProblemConflict      Problem = "/errors/conflict"
+	ProblemAlreadyExists Problem = "/errors/already-exists"
 )
 
 type HttpError struct {
-	Problem Problem
+	Problem    Problem
 	StatusCode int
 	Wrapped    error
 }
@@ -74,13 +73,13 @@ func InternalError(err error) error {
 	}
 }
 
-func Conflict(err error) error {
+func AlreadyExists(err error) error {
 	if err == nil {
 		return nil
 	}
 	checkAlreadyWrapped(err)
 	return &HttpError{
-		Problem:    ProblemConflict,
+		Problem:    ProblemAlreadyExists,
 		StatusCode: 409,
 		Wrapped:    err,
 	}

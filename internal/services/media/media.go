@@ -129,7 +129,7 @@ func (ms *MediaService) PostMedia(ctx context.Context, request vmapi.PostMediaRe
 			return nil, fmt.Errorf("could not check for existing DVD path: %w", err)
 		}
 		if count > 0 {
-			return nil, vmerr.Conflict(errors.New("DVD with the given path already exists"))
+			return nil, vmerr.AlreadyExists(errors.New("DVD with the given path already exists"))
 		}
 
 		const insertDvdQuery = "INSERT INTO media_dvds (media_id, path) VALUES ($1, $2)"
@@ -387,7 +387,7 @@ func (ms *MediaService) PatchMedia(ctx context.Context, request vmapi.PatchMedia
 				return nil, fmt.Errorf("could not check for existing link: %w", err)
 			}
 			if linkCount > 0 {
-				return nil, vmerr.Conflict(fmt.Errorf("card with id %d is already linked to this media", cardId))
+				return nil, vmerr.AlreadyExists(fmt.Errorf("card with id %d is already linked to this media", cardId))
 			}
 
 			const insertLinkQuery = "INSERT INTO media_x_cards (media_id, card_id) VALUES ($1, $2)"
@@ -441,7 +441,7 @@ func (ms *MediaService) PatchMedia(ctx context.Context, request vmapi.PatchMedia
 					return nil, fmt.Errorf("could not check for existing DVD path: %w", err)
 				}
 				if count > 0 {
-					return nil, vmerr.Conflict(errors.New("DVD with the given path already exists"))
+					return nil, vmerr.AlreadyExists(errors.New("DVD with the given path already exists"))
 				}
 
 				const query = "UPDATE media_dvds SET path = $1 WHERE media_id = $2;"

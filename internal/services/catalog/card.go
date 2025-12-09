@@ -106,7 +106,7 @@ func (s *CatalogService) PostCard(ctx context.Context, request vmapi.PostCardReq
 		return nil, fmt.Errorf("could not check for existing card name: %w", err)
 	}
 	if count > 0 {
-		return nil, vmerr.Conflict(errors.New("card with the given name already exists"))
+		return nil, vmerr.AlreadyExists(errors.New("card with the given name already exists"))
 	}
 
 	// Insert the card

@@ -67,7 +67,7 @@ func (s *CatalogService) PostMovieEditionKind(ctx context.Context, request vmapi
 		return nil, fmt.Errorf("could not check for existing movie edition kind name: %w", err)
 	}
 	if count > 0 {
-		return nil, vmerr.Conflict(errors.New("movie edition kind with the given name already exists"))
+		return nil, vmerr.AlreadyExists(errors.New("movie edition kind with the given name already exists"))
 	}
 
 	if isDefault {

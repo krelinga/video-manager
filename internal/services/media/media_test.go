@@ -293,7 +293,7 @@ func TestPostMedia(t *testing.T) {
 					},
 				}
 			},
-			wantErr:  vmtest.HttpError(vmerr.ProblemConflict),
+			wantErr:  vmtest.HttpError(vmerr.ProblemAlreadyExists),
 			wantResp: match.Nil(),
 		},
 		{
@@ -765,7 +765,7 @@ func TestPatchMedia(t *testing.T) {
 
 		// Try to add same card again
 		_, err = service.PatchMedia(ctx, req)
-		exam.Match(e, env, err, vmtest.HttpError(vmerr.ProblemConflict)).Log(err)
+		exam.Match(e, env, err, vmtest.HttpError(vmerr.ProblemAlreadyExists)).Log(err)
 	})
 	e.Run("remove card link", func(e exam.E) {
 		defer pg.Reset(e)
@@ -869,7 +869,7 @@ func TestPatchMedia(t *testing.T) {
 			},
 		}
 		_, err = service.PatchMedia(ctx, req)
-		exam.Match(e, env, err, vmtest.HttpError(vmerr.ProblemConflict)).Log(err)
+		exam.Match(e, env, err, vmtest.HttpError(vmerr.ProblemAlreadyExists)).Log(err)
 	})
 	e.Run("patch dvd ingestion state successful", func(e exam.E) {
 		defer pg.Reset(e)
@@ -920,7 +920,7 @@ func TestPatchMedia(t *testing.T) {
 		defer pg.Reset(e)
 		id := createMedia(e)
 		newState := vmapi.DVDIngestion{
-			State: vmapi.DVDIngestionStateError,
+			State:        vmapi.DVDIngestionStateError,
 			ErrorMessage: Set(""),
 		}
 		req := Request{
@@ -937,7 +937,7 @@ func TestPatchMedia(t *testing.T) {
 		defer pg.Reset(e)
 		id := createMedia(e)
 		newState := vmapi.DVDIngestion{
-			State: vmapi.DVDIngestionStatePending,
+			State:        vmapi.DVDIngestionStatePending,
 			ErrorMessage: Set("Should not be set"),
 		}
 		req := Request{
@@ -954,7 +954,7 @@ func TestPatchMedia(t *testing.T) {
 		defer pg.Reset(e)
 		id := createMedia(e)
 		newState := vmapi.DVDIngestion{
-			State: vmapi.DVDIngestionStateDone,
+			State:        vmapi.DVDIngestionStateDone,
 			ErrorMessage: Set("Should not be set"),
 		}
 		req := Request{
