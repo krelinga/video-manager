@@ -3,11 +3,18 @@ package vmnotify
 import (
 	"context"
 	"log"
+	"time"
 )
 
 // Corresponds to one scan of the backing table.
 // Returns true if any work was done.
 type WorkerFunc func(context.Context) (bool, error)
+
+const (
+	initialBackoff time.Duration = 100 * time.Millisecond
+	maxBackoff     time.Duration = 30 * time.Second
+	backoffFactor                = 2.0
+)
 
 func StartWorker(ctx context.Context, channel Channel, events <-chan Event, worker WorkerFunc) {
 	needScan := make(chan Event, 1)
@@ -15,6 +22,7 @@ func StartWorker(ctx context.Context, channel Channel, events <-chan Event, work
 
 	// Run worker loop.
 	go func() {
+		backoff := initialBackoff
 		for {
 			select {
 			case <-ctx.Done():
@@ -34,11 +42,22 @@ func StartWorker(ctx context.Context, channel Channel, events <-chan Event, work
 					didWork, err := worker(ctx)
 					if err != nil {
 						// Log error and back off before retrying.
-						log.Printf("Worker error on channel %q: %v", channel, err)
-						// TODO: implement better backoff strategy.
-					} else if !didWork {
-						// No more work to do.
-						break
+						log.Printf("Worker error on channel %q: %v (backing off for %v)", channel, err, backoff)
+						select {
+						case <-time.After(backoff):
+							// Increase backoff for next error, up to maxBackoff.
+							backoff = min(time.Duration(float64(backoff)*backoffFactor), maxBackoff)
+						case <-ctx.Done():
+							return
+						}
+						// Continue to retry after backoff.
+					} else {
+						// Reset backoff on success.
+						backoff = initialBackoff
+						if !didWork {
+							// No more work to do.
+							break
+						}
 					}
 					// Continue scanning while work is being done.
 				}
