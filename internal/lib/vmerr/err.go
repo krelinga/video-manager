@@ -12,6 +12,10 @@ const (
 	ProblemBadRequest    Problem = "/errors/bad-request"
 	ProblemInternalError Problem = "/errors/internal-error"
 	ProblemAlreadyExists Problem = "/errors/already-exists"
+	// Indicates that a database serialization error occurred, such as a
+	// transaction deadlock or a serialization failure.  Clients may choose to
+	// retry the operation with no modifications.
+	ProblemDbSerialization Problem = "/errors/db-serialization"
 )
 
 type HttpError struct {
@@ -80,6 +84,18 @@ func AlreadyExists(err error) error {
 	checkAlreadyWrapped(err)
 	return &HttpError{
 		Problem:    ProblemAlreadyExists,
+		StatusCode: 409,
+		Wrapped:    err,
+	}
+}
+
+func DbSerialization(err error) error {
+	if err == nil {
+		return nil
+	}
+	checkAlreadyWrapped(err)
+	return &HttpError{
+		Problem:    ProblemDbSerialization,
 		StatusCode: 409,
 		Wrapped:    err,
 	}
