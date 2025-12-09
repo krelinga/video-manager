@@ -71,6 +71,4 @@ func StartWorker(ctx context.Context, channel Channel, events <-chan Event, work
 			}
 		}
 	}()
-
-	return
 }
