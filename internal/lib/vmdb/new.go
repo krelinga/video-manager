@@ -77,6 +77,11 @@ func New(url string, options ...Option) (DbRunner, error) {
 	for _, opt := range options {
 		opt.apply(cfg)
 	}
+	// Use serializable isolation level for all connections by default.
+	cfg.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
+		_, err := conn.Exec(ctx, "SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL SERIALIZABLE")
+		return err
+	}
 
 	pool, err := pgxpool.NewWithConfig(context.Background(), cfg)
 	// Not using functions from vmerr here because this should only be called during startup.
