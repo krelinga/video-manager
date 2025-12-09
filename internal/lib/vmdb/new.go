@@ -16,21 +16,21 @@ func (p *pgxPoolDbRunner) exec(ctx context.Context, statement Statement) (pgconn
 	sql, params := statement.query()
 	asPool := (*pgxpool.Pool)(p)
 	ct, err := asPool.Exec(ctx, sql, params...)
-	return ct, vmerr.InternalError(err)
+	return ct, handleError(err, vmerr.InternalError)
 }
 
 func (p *pgxPoolDbRunner) query(ctx context.Context, statement Statement) (pgx.Rows, error) {
 	sql, params := statement.query()
 	asPool := (*pgxpool.Pool)(p)
 	rows, err := asPool.Query(ctx, sql, params...)
-	return rows, vmerr.InternalError(err)
+	return rows, handleError(err, vmerr.InternalError)
 }
 
 func (p *pgxPoolDbRunner) Begin(ctx context.Context) (TxRunner, error) {
 	asPool := (*pgxpool.Pool)(p)
 	tx, err := asPool.Begin(ctx)
 	if err != nil {
-		return nil, vmerr.InternalError(err)
+		return nil, handleError(err, vmerr.InternalError)
 	}
 	return pgxTxRunner{tx: tx}, nil
 }
@@ -47,18 +47,18 @@ type pgxTxRunner struct {
 func (t pgxTxRunner) exec(ctx context.Context, statement Statement) (pgconn.CommandTag, error) {
 	sql, params := statement.query()
 	ct, err := t.tx.Exec(ctx, sql, params...)
-	return ct, vmerr.InternalError(err)
+	return ct, handleError(err, vmerr.InternalError)
 }
 
 func (t pgxTxRunner) query(ctx context.Context, statement Statement) (pgx.Rows, error) {
 	sql, params := statement.query()
 	rows, err := t.tx.Query(ctx, sql, params...)
-	return rows, vmerr.InternalError(err)
+	return rows, handleError(err, vmerr.InternalError)
 }
 
 func (t pgxTxRunner) Commit(ctx context.Context) error {
 	err := t.tx.Commit(ctx)
-	return vmerr.InternalError(err)
+	return handleError(err, vmerr.InternalError)
 }
 
 func (t pgxTxRunner) Rollback(ctx context.Context) {
