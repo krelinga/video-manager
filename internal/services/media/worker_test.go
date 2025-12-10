@@ -73,9 +73,37 @@ func TestDvdIngestionWorker(t *testing.T) {
 				exam.Nil(e, env, err).Log(err).Must()
 				exam.Equal(e, env, resp.(vmapi.GetMedia200JSONResponse).Details.Dvd.Path, paths.MediaDvdId(config.PathKindRelative, id))
 			},
-			// TODO: add the following tests:
-			// - Move multiple directories.
-			// - Handle errors in moving directories (i.e. if the input directory does not exist).
+		},
+		{
+			loc:  exam.Here(),
+			name: "Handle error when input directory does not exist",
+			setup: func(e exam.E, paths config.Paths) []uint32 {
+				// Create a media record but don't create the actual directory
+				postReq := vmapi.PostMediaRequestObject{
+					Body: &vmapi.MediaPost{
+						Details: vmapi.MediaPostDetails{
+							DvdInboxPath: Set(paths.InboxDvdName(config.PathKindRelative, "nonexistent-dvd")),
+						},
+					},
+				}
+				postResp, err := mediaService.PostMedia(ctx, postReq)
+				exam.Nil(e, env, err).Log(err).Must()
+				return []uint32{postResp.(vmapi.PostMedia201JSONResponse).Id}
+			},
+			wantDidWork: match.Equal(true),
+			wantErr:     match.Nil(),
+			check: func(e exam.E, paths config.Paths, ids []uint32) {
+				id := ids[0]
+				// Check that the media record was updated to error state
+				getReq := vmapi.GetMediaRequestObject{
+					Id: id,
+				}
+				resp, err := mediaService.GetMedia(ctx, getReq)
+				exam.Nil(e, env, err).Log(err).Must()
+				dvdResp := resp.(vmapi.GetMedia200JSONResponse)
+				exam.Equal(e, env, dvdResp.Details.Dvd.Ingestion.State, vmapi.DVDIngestionStateError).Log(deep.Format(env, dvdResp))
+				exam.Match(e, env, dvdResp.Details.Dvd.Ingestion.ErrorMessage, match.Not(match.Nil())).Log(deep.Format(env, dvdResp))
+			},
 		},
 	}
 	for _, tt := range tests {
@@ -88,7 +116,7 @@ func TestDvdIngestionWorker(t *testing.T) {
 				e.Fatalf("failed to bootstrap paths: %v", err)
 			}
 			worker := &media.DvdIngestionWorker{
-				Db: db,
+				Db:    db,
 				Paths: paths,
 			}
 			var ids []uint32

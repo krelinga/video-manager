@@ -14,8 +14,8 @@ import (
 
 const ChannelDvdIngestion vmnotify.Channel = "dvd_ingestion"
 
-type DvdIngestionWorker struct{
-	Db vmdb.DbRunner
+type DvdIngestionWorker struct {
+	Db    vmdb.DbRunner
 	Paths config.Paths
 }
 
@@ -42,8 +42,8 @@ func (w *DvdIngestionWorker) Scan(ctx context.Context) (bool, error) {
 		LIMIT 1
 	`
 	type rowType struct {
-		MediaId   uint32
-		Path string
+		MediaId uint32
+		Path    string
 	}
 	row, err := vmdb.QueryOne[rowType](ctx, tx, vmdb.Constant(sql))
 	if errors.Is(err, vmdb.ErrNotFound) {
@@ -65,6 +65,12 @@ func (w *DvdIngestionWorker) Scan(ctx context.Context) (bool, error) {
 		if updateErr != nil {
 			return false, fmt.Errorf("failed to update database to error state: %w", updateErr)
 		}
+
+		if err := tx.Commit(ctx); err != nil {
+			return false, fmt.Errorf("failed to commit transaction: %w", err)
+		}
+
+		return true, nil
 	}
 
 	const updateSql = `
