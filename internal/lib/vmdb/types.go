@@ -7,9 +7,10 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 )
+
 var (
-	ErrInternal = errors.New("database error")
-	ErrNotFound = errors.New("record not found")
+	ErrInternal        = errors.New("database error")
+	ErrNotFound        = errors.New("record not found")
 	ErrMultipleRecords = errors.New("multiple records found")
 )
 
@@ -32,6 +33,6 @@ type TxRunner interface {
 
 type DbRunner interface {
 	Runner
-	Begin(ctx context.Context) (TxRunner, error)
+	Begin(ctx context.Context, options ...TxOption) (TxRunner, error)
 	Close()
 }

@@ -26,9 +26,13 @@ func (p *pgxPoolDbRunner) query(ctx context.Context, statement Statement) (pgx.R
 	return rows, handleError(err, vmerr.InternalError)
 }
 
-func (p *pgxPoolDbRunner) Begin(ctx context.Context) (TxRunner, error) {
+func (p *pgxPoolDbRunner) Begin(ctx context.Context, options ...TxOption) (TxRunner, error) {
 	asPool := (*pgxpool.Pool)(p)
-	tx, err := asPool.Begin(ctx)
+	var txOptions pgx.TxOptions
+	for _, opt := range options {
+		opt.updateTxOptions(&txOptions)
+	}
+	tx, err := asPool.BeginTx(ctx, txOptions)
 	if err != nil {
 		return nil, handleError(err, vmerr.InternalError)
 	}
@@ -78,9 +82,9 @@ func New(url string, options ...Option) (DbRunner, error) {
 		opt.updatePoolConfig(cfg)
 	}
 	// Use serializable isolation level for all connections by default.
-	cfg.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
-		_, err := conn.Exec(ctx, "SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL SERIALIZABLE")
-		return err
+	options = append([]Option{WithSerializable()}, options...)
+	for _, opt := range options {
+		opt.updatePoolConfig(cfg)
 	}
 
 	pool, err := pgxpool.NewWithConfig(context.Background(), cfg)
