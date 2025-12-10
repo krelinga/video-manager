@@ -27,11 +27,15 @@ func Start(ctx context.Context, config config.Postgres, starters ...Starter) err
 	for _, starter := range starters {
 		ch := make(chan Event)
 		c := starter.Start(ctx, ch)
+		if err := checkValidChannelName(c); err != nil {
+			cancel()
+			return fmt.Errorf("failed to start worker for channel %q: %w", c, err)
+		}
 		chanWorkers[c] = ch
 	}
 
 	for channel := range chanWorkers {
-		if _, err := pg.Exec(ctx, "LISTEN $1;", string(channel)); err != nil {
+		if _, err := pg.Exec(ctx, fmt.Sprintf("LISTEN %q;", string(channel))); err != nil {
 			cancel()
 			return fmt.Errorf("failed to LISTEN on channel %q: %w", channel, err)
 		}

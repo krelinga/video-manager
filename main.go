@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 
@@ -8,6 +9,7 @@ import (
 	"github.com/krelinga/video-manager/internal/lib/config"
 	"github.com/krelinga/video-manager/internal/lib/migrate"
 	"github.com/krelinga/video-manager/internal/lib/vmdb"
+	"github.com/krelinga/video-manager/internal/lib/vmnotify"
 	"github.com/krelinga/video-manager/internal/services/catalog"
 	"github.com/krelinga/video-manager/internal/services/inbox"
 	"github.com/krelinga/video-manager/internal/services/media"
@@ -44,6 +46,18 @@ func main() {
 	// Handle any necessary DB migrations.
 	if err := migrate.Up(config.Postgres); err != nil {
 		fmt.Printf("Database migration error: %v\n", err)
+		return
+	}
+
+	// Start workers.
+	workers := []vmnotify.Starter{
+		&media.DvdIngestionWorker{
+			Db: db,
+			Paths: config.Paths,
+		},
+	}
+	if err := vmnotify.Start(context.Background(), *config.Postgres, workers...); err != nil {
+		fmt.Printf("Failed to start workers: %v\n", err)
 		return
 	}
 
