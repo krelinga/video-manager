@@ -13,11 +13,11 @@ import (
 )
 
 type InboxService struct {
-	Config *config.Config
+	Paths config.Paths
 }
 
 func (s *InboxService) ListInboxDVDs(ctx context.Context, request vmapi.ListInboxDVDsRequestObject) (vmapi.ListInboxDVDsResponseObject, error) {
-	files, err := os.ReadDir(s.Config.DiscInboxDir)
+	files, err := os.ReadDir(s.Paths.InboxDvd(config.PathKindAbsolute))
 	if err != nil {
 		return nil, vmerr.InternalError(fmt.Errorf("could not read DVD inbox dir: %w", err))
 	}
@@ -26,7 +26,7 @@ func (s *InboxService) ListInboxDVDs(ctx context.Context, request vmapi.ListInbo
 		if !d.IsDir() {
 			continue
 		}
-		fullPath := filepath.Join(s.Config.DiscInboxDir, d.Name())
+		fullPath := filepath.Join(s.Paths.InboxDvd(config.PathKindAbsolute), d.Name())
 		dirs = append(dirs, fullPath)
 	}
 	limit := &vmpage.Limit{

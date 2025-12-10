@@ -27,8 +27,13 @@ func main() {
 	// Initialize configuration
 	config := config.New()
 
-	// Create database connection pool.
+	// Make sure that all necessary directories exist.
+	if err := config.Paths.Bootstrap(); err != nil {
+		fmt.Printf("Failed to bootstrap paths: %v\n", err)
+		return
+	}
 
+	// Create database connection pool.
 	db, err := vmdb.New(config.Postgres.URL())
 	if err != nil {
 		fmt.Printf("Unable to connect to database: %v\n", err)
@@ -47,7 +52,7 @@ func main() {
 			Db: db,
 		},
 		InboxService: &inbox.InboxService{
-			Config: config,
+			Paths: config.Paths,
 		},
 		MediaService: &media.MediaService{
 			Db: db,

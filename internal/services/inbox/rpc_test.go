@@ -23,6 +23,14 @@ func TestGetInboxDVDs(t *testing.T) {
 	e := exam.New(t)
 	env := deep.NewEnv()
 	tempDir := e.TempDir()
+	
+	paths := config.Paths{
+		RootDir: tempDir,
+	}
+	service := &inbox.InboxService{
+		Paths: paths,
+	}
+
 	cleanTempDir := func() {
 		entries, err := os.ReadDir(tempDir)
 		if err != nil {
@@ -34,12 +42,9 @@ func TestGetInboxDVDs(t *testing.T) {
 				e.Fatalf("Failed to remove %s: %v", entry.Name(), err)
 			}
 		}
-	}
-	config := &config.Config{
-		DiscInboxDir: tempDir,
-	}
-	service := &inbox.InboxService{
-		Config: config,
+		if err := paths.Bootstrap(); err != nil {
+			e.Fatalf("Failed to bootstrap paths: %v", err)
+		}
 	}
 
 	tests := []struct {
@@ -55,7 +60,7 @@ func TestGetInboxDVDs(t *testing.T) {
 			test: func(e exam.E) {
 				req := vmapi.ListInboxDVDsRequestObject{}
 				resp, err := service.ListInboxDVDs(ctx, req)
-				exam.Nil(e, env, err).Must()
+				exam.Nil(e, env, err).Log(err).Must()
 				wantResp := vmapi.ListInboxDVDs200JSONResponse{
 					Paths: []string{},
 				}
@@ -120,7 +125,7 @@ func TestGetInboxDVDs(t *testing.T) {
 			e.Log(tt.loc)
 			cleanTempDir()
 			for _, entry := range tt.entries {
-				path := filepath.Join(tempDir, entry)
+				path := filepath.Join(paths.InboxDvd(config.PathKindAbsolute), entry)
 				err := os.MkdirAll(path, 0755)
 				if err != nil {
 					e.Fatalf("Failed to create directory %s: %v", entry, err)
