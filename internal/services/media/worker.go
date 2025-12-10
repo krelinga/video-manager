@@ -22,8 +22,10 @@ func (w *DvdIngestionWorker) Start(ctx context.Context, events <-chan vmnotify.E
 }
 
 func (w *DvdIngestionWorker) dvdIngestionWorkerOneScan(ctx context.Context) (bool, error) {
-	// TODO: use READ COMMITTED isolation level here.
-	tx, err := w.Db.Begin(ctx)
+	// Using READ COMMITTED to minimize the chance of the transaction being aborted.
+	// This matters because moving the files is a side effect, and things will break if
+	// the tranaction is aborted after the move happens.
+	tx, err := w.Db.Begin(ctx, vmdb.WithReadCommitted())
 	if err != nil {
 		return false, err
 	}
