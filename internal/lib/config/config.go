@@ -130,6 +130,11 @@ func (p Paths) InboxDvd(pk PathKind) string {
 	return p.makePath(pk, "inbox", "dvd")
 }
 
+// Returns the path to the directory that contains a specific inbox DVD.
+func (p Paths) InboxDvdName(pk PathKind, name string) string {
+	return p.makePath(pk, "inbox", "dvd", name)
+}
+
 // Returns the path to the media directory that contains all imported DVDs.
 func (p Paths) MediaDvd(pk PathKind) string {
 	return p.makePath(pk, "media", "dvd")

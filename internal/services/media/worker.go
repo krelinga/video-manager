@@ -58,8 +58,8 @@ func (w *DvdIngestionWorker) Scan(ctx context.Context) (bool, error) {
 		log.Printf("Failed to rename DVD path from %q to %q: %v", oldPath, newPath, renameErr)
 		const errorSql = `
 			UPDATE media_dvds
-			SET ingestion_state = 'error', error_message = $2
-			WHERE id = $1
+			SET ingestion_state = 'error', ingestion_error = $2
+			WHERE media_id = $1
 		`
 		_, updateErr := vmdb.Exec(ctx, tx, vmdb.Positional(errorSql, row.MediaId, renameErr.Error()))
 		if updateErr != nil {
@@ -69,8 +69,8 @@ func (w *DvdIngestionWorker) Scan(ctx context.Context) (bool, error) {
 
 	const updateSql = `
 		UPDATE media_dvds
-		SET ingestion_state = 'done', path = $2
-		WHERE id = $1
+		SET ingestion_state = 'done', path = $2, ingestion_error = NULL
+		WHERE media_id = $1
 	`
 	relPath := w.Paths.MediaDvdId(config.PathKindRelative, row.MediaId)
 	if _, err := vmdb.Exec(ctx, tx, vmdb.Positional(updateSql, row.MediaId, relPath)); err != nil {
