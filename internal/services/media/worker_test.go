@@ -73,6 +73,9 @@ func TestDvdIngestionWorker(t *testing.T) {
 				exam.Nil(e, env, err).Log(err).Must()
 				exam.Equal(e, env, resp.(vmapi.GetMedia200JSONResponse).Details.Dvd.Path, paths.MediaDvdId(config.PathKindRelative, id))
 			},
+			// TODO: add the following tests:
+			// - Move multiple directories.
+			// - Handle errors in moving directories (i.e. if the input directory does not exist).
 		},
 	}
 	for _, tt := range tests {
