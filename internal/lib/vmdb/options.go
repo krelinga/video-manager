@@ -6,12 +6,12 @@ import (
 )
 
 type Option interface {
-	apply(*pgxpool.Config)
+	updatePoolConfig(*pgxpool.Config)
 }
 
 type optionFunc func(*pgxpool.Config)
 
-func (f optionFunc) apply(cfg *pgxpool.Config) {
+func (f optionFunc) updatePoolConfig(cfg *pgxpool.Config) {
 	f(cfg)
 }
 

@@ -75,7 +75,7 @@ func New(url string, options ...Option) (DbRunner, error) {
 		return nil, fmt.Errorf("could not parse connection url %q: %w", url, err)
 	}
 	for _, opt := range options {
-		opt.apply(cfg)
+		opt.updatePoolConfig(cfg)
 	}
 	// Use serializable isolation level for all connections by default.
 	cfg.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
