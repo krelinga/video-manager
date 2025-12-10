@@ -3,6 +3,7 @@ package media
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 
@@ -27,25 +28,27 @@ func (w *DvdIngestionWorker) Scan(ctx context.Context) (bool, error) {
 	// the tranaction is aborted after the move happens.
 	tx, err := w.Db.Begin(ctx, vmdb.WithReadCommitted())
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback(ctx)
 
 	const sql = `
-		SELECT id, path
+		SELECT media_id, path
 		FROM media_dvds
 		WHERE ingestion_state = 'pending'
 		FOR UPDATE SKIP LOCKED
 		LIMIT 1
 	`
 	type rowType struct {
-		id   uint32
+		media_id   uint32
 		path string
 	}
 	row, err := vmdb.QueryOne[rowType](ctx, tx, vmdb.Constant(sql))
 	if errors.Is(err, vmdb.ErrNotFound) {
 		// Nothing to do.
 		return false, nil
+	} else if err != nil {
+		return false, fmt.Errorf("failed to query for pending DVD ingestion: %w", err)
 	}
 	oldPath := row.path  // TODO: fully-determine old path.
 	newPath := "" // TODO: determine new path
@@ -56,9 +59,9 @@ func (w *DvdIngestionWorker) Scan(ctx context.Context) (bool, error) {
 			SET ingestion_state = 'error', error_message = $2
 			WHERE id = $1
 		`
-		_, updateErr := vmdb.Exec(ctx, tx, vmdb.Positional(errorSql, row.id, renameErr.Error()))
+		_, updateErr := vmdb.Exec(ctx, tx, vmdb.Positional(errorSql, row.media_id, renameErr.Error()))
 		if updateErr != nil {
-			return false, updateErr
+			return false, fmt.Errorf("failed to update database to error state: %w", updateErr)
 		}
 	}
 
@@ -67,12 +70,12 @@ func (w *DvdIngestionWorker) Scan(ctx context.Context) (bool, error) {
 		SET ingestion_state = 'done', path = $2
 		WHERE id = $1
 	`
-	if _, err := vmdb.Exec(ctx, tx, vmdb.Positional(updateSql, row.id, newPath)); err != nil {
-		return false, err
+	if _, err := vmdb.Exec(ctx, tx, vmdb.Positional(updateSql, row.media_id, newPath)); err != nil {
+		return false, fmt.Errorf("failed to update database to done state: %w", err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	return true, nil
