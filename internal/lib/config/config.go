@@ -120,6 +120,10 @@ func (p Paths) makePath(pk PathKind, parts ...string) string {
 	return filepath.Join(parts...)
 }
 
+func (p Paths) Absolute(relPath string) string {
+	return p.makePath(PathKindAbsolute, relPath)
+}
+
 // Returns the path to the inbox dvd directory.
 // Entries under this directory represent DVDs that have not been imported yet.
 func (p Paths) InboxDvd(pk PathKind) string {
