@@ -8,6 +8,7 @@ import (
 	"github.com/krelinga/video-manager-api/go/vmapi"
 	"github.com/krelinga/video-manager/internal/lib/vmdb"
 	"github.com/krelinga/video-manager/internal/lib/vmerr"
+	"github.com/krelinga/video-manager/internal/lib/vmnotify"
 	"github.com/krelinga/video-manager/internal/lib/vmpage"
 )
 
@@ -163,6 +164,10 @@ func (ms *MediaService) PostMedia(ctx context.Context, request vmapi.PostMediaRe
 	media, err := getMedia(ctx, tx, mediaId)
 	if err != nil {
 		return nil, err
+	}
+
+	if err := vmnotify.Notify(ctx, tx, ChannelDvdIngestion); err != nil {
+		return nil, fmt.Errorf("could not notify %q: %w", ChannelDvdIngestion, err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
