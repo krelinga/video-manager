@@ -17,11 +17,11 @@ type DvdIngestionWorker struct{
 }
 
 func (w *DvdIngestionWorker) Start(ctx context.Context, events <-chan vmnotify.Event) vmnotify.Channel {
-	vmnotify.StartWorker(ctx, ChannelDvdIngestion, events, w.dvdIngestionWorkerOneScan)
+	vmnotify.StartWorker(ctx, ChannelDvdIngestion, events, w.Scan)
 	return ChannelDvdIngestion
 }
 
-func (w *DvdIngestionWorker) dvdIngestionWorkerOneScan(ctx context.Context) (bool, error) {
+func (w *DvdIngestionWorker) Scan(ctx context.Context) (bool, error) {
 	// Using READ COMMITTED to minimize the chance of the transaction being aborted.
 	// This matters because moving the files is a side effect, and things will break if
 	// the tranaction is aborted after the move happens.
