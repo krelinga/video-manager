@@ -92,13 +92,7 @@ func (w *worker) scan(ctx context.Context) (bool, error) {
 	go w.heartbeat(heartbeatCtx, row.Id)
 
 	// Execute the handler.
-	taskCtx := &taskContext{
-		Context:  ctx,
-		db:       tx,
-		taskId:   row.Id,
-		taskType: row.TaskType,
-	}
-	result := handler.Handle(taskCtx, row.State)
+	result := handler.Handle(ctx, tx, row.Id, row.TaskType, row.State)
 
 	// Stop heartbeat before updating final state.
 	cancelHeartbeat()

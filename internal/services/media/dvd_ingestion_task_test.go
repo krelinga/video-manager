@@ -129,13 +129,7 @@ func TestDvdIngestionHandler(t *testing.T) {
 			exam.Nil(e, env, err).Log(err).Must()
 			defer tx.Rollback(ctx)
 
-			taskCtx := &testTaskContext{
-				Context:   ctx,
-				db:        tx,
-				taskId:    task.Id,
-				taskTypeV: task.TaskType,
-			}
-			result := handler.Handle(taskCtx, task.State)
+			result := handler.Handle(ctx, tx, task.Id, task.TaskType, task.State)
 
 			// Apply the result to the task
 			if result.NewStatus == vmtask.StatusFailed {
@@ -165,24 +159,4 @@ func TestDvdIngestionHandler(t *testing.T) {
 			}
 		})
 	}
-}
-
-// testTaskContext implements vmtask.Context for testing
-type testTaskContext struct {
-	context.Context
-	db        vmdb.Runner
-	taskId    int
-	taskTypeV string
-}
-
-func (c *testTaskContext) Db() vmdb.Runner {
-	return c.db
-}
-
-func (c *testTaskContext) TaskId() int {
-	return c.taskId
-}
-
-func (c *testTaskContext) TaskType() string {
-	return c.taskTypeV
 }

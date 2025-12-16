@@ -27,7 +27,7 @@ type DvdIngestionHandler struct {
 }
 
 // Handle implements vmtask.Handler.
-func (h *DvdIngestionHandler) Handle(ctx vmtask.Context, stateBytes []byte) vmtask.Result {
+func (h *DvdIngestionHandler) Handle(ctx context.Context, db vmdb.Runner, taskId int, taskType string, stateBytes []byte) vmtask.Result {
 	var state DvdIngestionState
 	if err := json.Unmarshal(stateBytes, &state); err != nil {
 		return vmtask.Failed(fmt.Sprintf("failed to unmarshal state: %v", err))
@@ -35,7 +35,7 @@ func (h *DvdIngestionHandler) Handle(ctx vmtask.Context, stateBytes []byte) vmta
 
 	// Get the current path from media_dvds
 	const selectSql = `SELECT path FROM media_dvds WHERE media_id = $1`
-	path, err := vmdb.QueryOne[string](ctx, ctx.Db(), vmdb.Positional(selectSql, state.MediaId))
+	path, err := vmdb.QueryOne[string](ctx, db, vmdb.Positional(selectSql, state.MediaId))
 	if err != nil {
 		return vmtask.Failed(fmt.Sprintf("failed to query media_dvds: %v", err))
 	}
@@ -52,7 +52,7 @@ func (h *DvdIngestionHandler) Handle(ctx vmtask.Context, stateBytes []byte) vmta
 	// Update the path in media_dvds to the new location
 	relPath := h.Paths.MediaDvdId(config.PathKindRelative, state.MediaId)
 	const updateSql = `UPDATE media_dvds SET path = $2 WHERE media_id = $1`
-	if _, err := vmdb.Exec(ctx, ctx.Db(), vmdb.Positional(updateSql, state.MediaId, relPath)); err != nil {
+	if _, err := vmdb.Exec(ctx, db, vmdb.Positional(updateSql, state.MediaId, relPath)); err != nil {
 		return vmtask.Failed(fmt.Sprintf("failed to update media_dvds path: %v", err))
 	}
 

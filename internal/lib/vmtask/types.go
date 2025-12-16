@@ -1,6 +1,11 @@
 package vmtask
 
-import "time"
+import (
+	"context"
+	"time"
+
+	"github.com/krelinga/video-manager/internal/lib/vmdb"
+)
 
 // Status represents the current state of a task.
 type Status string
@@ -49,7 +54,7 @@ type Result struct {
 // - StatusCompleted: task finished successfully
 // - StatusFailed: task encountered a permanent error
 type Handler interface {
-	Handle(ctx Context, state []byte) Result
+	Handle(ctx context.Context, db vmdb.Runner, taskId int, taskType string, state []byte) Result
 }
 
 // Pending returns a Result that re-queues the task with updated state.

@@ -1,10 +1,12 @@
 package vmtask_test
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"testing"
 
+	"github.com/krelinga/video-manager/internal/lib/vmdb"
 	"github.com/krelinga/video-manager/internal/lib/vmtask"
 )
 
@@ -13,7 +15,7 @@ type mockHandler struct {
 	name string
 }
 
-func (m *mockHandler) Handle(ctx vmtask.Context, state []byte) vmtask.Result {
+func (m *mockHandler) Handle(ctx context.Context, db vmdb.Runner, taskId int, taskType string, state []byte) vmtask.Result {
 	return vmtask.Completed()
 }
 
