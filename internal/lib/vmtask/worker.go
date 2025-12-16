@@ -155,9 +155,15 @@ func (w *worker) applyResult(ctx context.Context, tx vmdb.Runner, taskId int, re
 	case StatusWaiting:
 		return w.updateTaskState(ctx, tx, taskId, result.NewState, StatusWaiting)
 	case StatusCompleted:
-		return w.completeTask(ctx, tx, taskId, result.NewState)
+		if err := w.completeTask(ctx, tx, taskId, result.NewState); err != nil {
+			return err
+		}
+		return w.maybeResumeParent(ctx, tx, taskId)
 	case StatusFailed:
-		return w.failTask(ctx, tx, taskId, result.Error)
+		if err := w.failTask(ctx, tx, taskId, result.Error); err != nil {
+			return err
+		}
+		return w.maybeResumeParent(ctx, tx, taskId)
 	case StatusRunning:
 		return fmt.Errorf("handler returned invalid status 'running'")
 	default:
@@ -229,5 +235,45 @@ func (w *worker) failTask(ctx context.Context, tx vmdb.Runner, taskId int, errMs
 	if _, err := vmdb.Exec(ctx, tx, vmdb.Positional(sql, taskId, errMsg)); err != nil {
 		return fmt.Errorf("failed to fail task: %w", err)
 	}
+	return nil
+}
+
+// maybeResumeParent checks if a child task has a parent, and if so,
+// resumes the parent if it's in waiting status. This is called after
+// a child completes or fails - the parent can then check child statuses
+// and decide how to proceed.
+func (w *worker) maybeResumeParent(ctx context.Context, tx vmdb.Runner, childId int) error {
+	// Get the parent_id for this child.
+	const parentSQL = `
+		SELECT parent_id FROM tasks WHERE id = $1
+	`
+	parentId, err := vmdb.QueryOne[*int](ctx, tx, vmdb.Positional(parentSQL, childId))
+	if err != nil {
+		return fmt.Errorf("failed to get parent_id: %w", err)
+	}
+
+	if parentId == nil {
+		// No parent - nothing to do.
+		return nil
+	}
+
+	// Resume the parent if it's waiting.
+	const resumeSQL = `
+		UPDATE tasks
+		SET status = 'pending'
+		WHERE id = $1 AND status = 'waiting'
+	`
+	count, err := vmdb.Exec(ctx, tx, vmdb.Positional(resumeSQL, *parentId))
+	if err != nil {
+		return fmt.Errorf("failed to resume parent task: %w", err)
+	}
+
+	if count > 0 {
+		// Notify workers that there's work to do.
+		if err := notify(ctx, tx); err != nil {
+			return fmt.Errorf("failed to notify task channel: %w", err)
+		}
+	}
+
 	return nil
 }

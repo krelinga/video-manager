@@ -77,7 +77,7 @@ func CreateDvdIngestionTask(ctx context.Context, db vmdb.Runner, mediaId uint32)
 // Returns nil if no task exists for the media ID.
 func GetDvdIngestionTask(ctx context.Context, db vmdb.Runner, mediaId uint32) (*vmtask.Task, error) {
 	const sql = `
-		SELECT id, task_type, state, status, worker_id, lease_expires_at, error, created_at, updated_at
+		SELECT id, task_type, state, status, worker_id, lease_expires_at, error, parent_id, created_at, updated_at
 		FROM tasks
 		WHERE task_type = $1 AND (state->>'media_id')::integer = $2
 		ORDER BY created_at DESC

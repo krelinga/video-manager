@@ -149,6 +149,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     worker_id TEXT,
     lease_expires_at TIMESTAMPTZ,
     error TEXT,
+    parent_id INTEGER REFERENCES tasks(id) ON DELETE CASCADE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     -- worker_id and lease_expires_at must be set together when running
@@ -162,6 +163,10 @@ CREATE TABLE IF NOT EXISTS tasks (
         (status <> 'failed' AND error IS NULL)
     )
 );
+
+-- Index for finding child tasks by parent
+CREATE INDEX IF NOT EXISTS idx_tasks_parent_id ON tasks (parent_id)
+WHERE parent_id IS NOT NULL;
 
 -- Index for finding claimable tasks (pending or expired leases)
 CREATE INDEX IF NOT EXISTS idx_tasks_claimable ON tasks (status, lease_expires_at)

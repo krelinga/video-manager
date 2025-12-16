@@ -32,6 +32,7 @@ type Task struct {
 	WorkerId       *string
 	LeaseExpiresAt *time.Time
 	Error          *string
+	ParentId       *int
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 }

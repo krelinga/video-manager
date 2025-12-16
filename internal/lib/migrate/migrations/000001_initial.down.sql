@@ -3,6 +3,9 @@
 -- Drop the index for dvd_ingestion task lookups
 DROP INDEX IF EXISTS idx_tasks_dvd_ingestion_media_id;
 
+-- Drop index for child tasks
+DROP INDEX IF EXISTS idx_tasks_parent_id;
+
 -- Drop trigger and function for tasks
 DROP TRIGGER IF EXISTS trg_update_tasks_updated_at ON tasks;
 DROP FUNCTION IF EXISTS update_tasks_updated_at();
