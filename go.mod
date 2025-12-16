@@ -4,6 +4,7 @@ go 1.24.9
 
 require (
 	github.com/golang-migrate/migrate/v4 v4.19.0
+	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.5.4
 	github.com/krelinga/go-libs v0.4.1
 	github.com/krelinga/video-manager-api/go/vmapi v0.0.19
@@ -35,7 +36,6 @@ require (
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/go-openapi/jsonpointer v0.21.0 // indirect
 	github.com/go-openapi/swag v0.23.0 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
