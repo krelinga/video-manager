@@ -7,7 +7,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.5.4
 	github.com/krelinga/go-libs v0.4.1
-	github.com/krelinga/video-manager-api/go/vmapi v0.0.19
+	github.com/krelinga/video-manager-api/go/vmapi v0.0.20
 	github.com/testcontainers/testcontainers-go v0.40.0
 	golang.org/x/net v0.47.0
 )
