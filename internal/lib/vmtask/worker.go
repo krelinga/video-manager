@@ -8,13 +8,9 @@ import (
 	"time"
 
 	"github.com/krelinga/video-manager/internal/lib/vmdb"
-	"github.com/krelinga/video-manager/internal/lib/vmnotify"
 )
 
 const (
-	// ChannelTasks is the notification channel for task events.
-	ChannelTasks vmnotify.Channel = "tasks"
-
 	// LeaseDuration is how long a worker holds a task before it can be reclaimed.
 	LeaseDuration = 5 * time.Minute
 
@@ -22,29 +18,23 @@ const (
 	HeartbeatInterval = 1 * time.Minute
 )
 
-// Worker processes tasks from the database.
-type Worker struct {
-	Db       vmdb.DbRunner
-	Registry *Registry
-}
-
-// Start implements vmnotify.Starter.
-func (w *Worker) Start(ctx context.Context, events <-chan vmnotify.Event) vmnotify.Channel {
-	vmnotify.StartWorker(ctx, ChannelTasks, events, w.scan)
-	return ChannelTasks
+// worker processes tasks from the database.
+type worker struct {
+	db       vmdb.DbRunner
+	registry *Registry
 }
 
 // scan looks for a claimable task and processes it.
-func (w *Worker) scan(ctx context.Context) (bool, error) {
+func (w *worker) scan(ctx context.Context) (bool, error) {
 	// Use READ COMMITTED since handlers may have side effects.
-	tx, err := w.Db.Begin(ctx, vmdb.WithReadCommitted())
+	tx, err := w.db.Begin(ctx, vmdb.WithReadCommitted())
 	if err != nil {
 		return false, fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback(ctx)
 
 	// Claim a task: either pending, or running with expired lease.
-	workerId := vmnotify.GetWorkerId()
+	workerId := GetWorkerId()
 	leaseExpires := time.Now().Add(LeaseDuration)
 
 	const claimSQL = `
@@ -80,10 +70,10 @@ func (w *Worker) scan(ctx context.Context) (bool, error) {
 	}
 
 	// Look up the handler for this task type.
-	if w.Registry == nil {
-		panic("vmtask: Worker.Registry is nil")
+	if w.registry == nil {
+		panic("vmtask: worker.registry is nil")
 	}
-	handler, exists := w.Registry.Get(row.TaskType)
+	handler, exists := w.registry.Get(row.TaskType)
 	if !exists {
 		// No handler registered - mark as failed.
 		log.Printf("vmtask: no handler registered for task type %q (task %d)", row.TaskType, row.Id)
@@ -126,7 +116,7 @@ func (w *Worker) scan(ctx context.Context) (bool, error) {
 }
 
 // heartbeat periodically renews the lease for a task.
-func (w *Worker) heartbeat(ctx context.Context, taskId int) {
+func (w *worker) heartbeat(ctx context.Context, taskId int) {
 	ticker := time.NewTicker(HeartbeatInterval)
 	defer ticker.Stop()
 
@@ -144,8 +134,8 @@ func (w *Worker) heartbeat(ctx context.Context, taskId int) {
 }
 
 // renewLease extends the lease for a running task.
-func (w *Worker) renewLease(ctx context.Context, taskId int) error {
-	workerId := vmnotify.GetWorkerId()
+func (w *worker) renewLease(ctx context.Context, taskId int) error {
+	workerId := GetWorkerId()
 	leaseExpires := time.Now().Add(LeaseDuration)
 
 	const sql = `
@@ -153,7 +143,7 @@ func (w *Worker) renewLease(ctx context.Context, taskId int) error {
 		SET lease_expires_at = $3
 		WHERE id = $1 AND worker_id = $2 AND status = 'running'
 	`
-	count, err := vmdb.Exec(ctx, w.Db, vmdb.Positional(sql, taskId, string(workerId), leaseExpires))
+	count, err := vmdb.Exec(ctx, w.db, vmdb.Positional(sql, taskId, string(workerId), leaseExpires))
 	if err != nil {
 		return err
 	}
@@ -164,7 +154,7 @@ func (w *Worker) renewLease(ctx context.Context, taskId int) error {
 }
 
 // applyResult updates the task based on the handler's result.
-func (w *Worker) applyResult(ctx context.Context, tx vmdb.Runner, taskId int, result Result) error {
+func (w *worker) applyResult(ctx context.Context, tx vmdb.Runner, taskId int, result Result) error {
 	switch result.NewStatus {
 	case StatusPending:
 		return w.updateTaskState(ctx, tx, taskId, result.NewState, StatusPending)
@@ -182,7 +172,7 @@ func (w *Worker) applyResult(ctx context.Context, tx vmdb.Runner, taskId int, re
 }
 
 // updateTaskState updates state and status, clearing lease info.
-func (w *Worker) updateTaskState(ctx context.Context, tx vmdb.Runner, taskId int, newState []byte, status Status) error {
+func (w *worker) updateTaskState(ctx context.Context, tx vmdb.Runner, taskId int, newState []byte, status Status) error {
 	var sql string
 	var params []any
 
@@ -209,7 +199,7 @@ func (w *Worker) updateTaskState(ctx context.Context, tx vmdb.Runner, taskId int
 }
 
 // completeTask marks a task as completed.
-func (w *Worker) completeTask(ctx context.Context, tx vmdb.Runner, taskId int, newState []byte) error {
+func (w *worker) completeTask(ctx context.Context, tx vmdb.Runner, taskId int, newState []byte) error {
 	var sql string
 	var params []any
 
@@ -236,7 +226,7 @@ func (w *Worker) completeTask(ctx context.Context, tx vmdb.Runner, taskId int, n
 }
 
 // failTask marks a task as failed with an error message.
-func (w *Worker) failTask(ctx context.Context, tx vmdb.Runner, taskId int, errMsg string) error {
+func (w *worker) failTask(ctx context.Context, tx vmdb.Runner, taskId int, errMsg string) error {
 	const sql = `
 		UPDATE tasks
 		SET status = 'failed', error = $2, worker_id = NULL, lease_expires_at = NULL

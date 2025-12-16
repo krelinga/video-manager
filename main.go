@@ -9,7 +9,6 @@ import (
 	"github.com/krelinga/video-manager/internal/lib/config"
 	"github.com/krelinga/video-manager/internal/lib/migrate"
 	"github.com/krelinga/video-manager/internal/lib/vmdb"
-	"github.com/krelinga/video-manager/internal/lib/vmnotify"
 	"github.com/krelinga/video-manager/internal/lib/vmtask"
 	"github.com/krelinga/video-manager/internal/services/catalog"
 	"github.com/krelinga/video-manager/internal/services/inbox"
@@ -56,12 +55,9 @@ func main() {
 		Paths: config.Paths,
 	})
 
-	// Start workers.
-	workers := []vmnotify.Starter{
-		&vmtask.Worker{Db: db, Registry: registry},
-	}
-	if err := vmnotify.Start(context.Background(), *config.Postgres, workers...); err != nil {
-		fmt.Printf("Failed to start workers: %v\n", err)
+	// Start task handlers.
+	if err := registry.StartHandlers(context.Background(), *config.Postgres, db); err != nil {
+		fmt.Printf("Failed to start handlers: %v\n", err)
 		return
 	}
 

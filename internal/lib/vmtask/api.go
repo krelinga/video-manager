@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/krelinga/video-manager/internal/lib/vmdb"
-	"github.com/krelinga/video-manager/internal/lib/vmnotify"
 )
 
 // Create inserts a new task into the database and notifies workers.
@@ -28,7 +27,7 @@ func Create(ctx context.Context, db vmdb.Runner, taskType string, state []byte) 
 	}
 
 	// Notify workers that there's new work.
-	if err := vmnotify.Notify(ctx, db, ChannelTasks); err != nil {
+	if err := notify(ctx, db); err != nil {
 		return 0, fmt.Errorf("failed to notify task channel: %w", err)
 	}
 
@@ -51,7 +50,7 @@ func Resume(ctx context.Context, db vmdb.Runner, taskId int) (bool, error) {
 
 	if count > 0 {
 		// Notify workers that there's work to do.
-		if err := vmnotify.Notify(ctx, db, ChannelTasks); err != nil {
+		if err := notify(ctx, db); err != nil {
 			return false, fmt.Errorf("failed to notify task channel: %w", err)
 		}
 	}
@@ -75,7 +74,7 @@ func ResumeWithState(ctx context.Context, db vmdb.Runner, taskId int, newState [
 
 	if count > 0 {
 		// Notify workers that there's work to do.
-		if err := vmnotify.Notify(ctx, db, ChannelTasks); err != nil {
+		if err := notify(ctx, db); err != nil {
 			return false, fmt.Errorf("failed to notify task channel: %w", err)
 		}
 	}
