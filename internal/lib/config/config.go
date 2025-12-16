@@ -20,13 +20,15 @@ const (
 	EnvPostgresDBName   = "VIDEO_MANAGER_POSTGRES_DBNAME"
 	EnvPostgresUser     = "VIDEO_MANAGER_POSTGRES_USER"
 	EnvPostgresPassword = "VIDEO_MANAGER_POSTGRES_PASSWORD"
-	EnvRootDir			= "VIDEO_MANAGER_ROOT_DIR"
+	EnvRootDir          = "VIDEO_MANAGER_ROOT_DIR"
+	EnvWorkerGoroutines = "VIDEO_MANAGER_WORKER_GOROUTINES"
 )
 
 type Config struct {
-	Paths        Paths
-	HttpPort     int
-	Postgres     *Postgres
+	Paths            Paths
+	HttpPort         int
+	Postgres         *Postgres
+	WorkerGoroutines int
 }
 
 type Postgres struct {
@@ -52,7 +54,8 @@ func New() *Config {
 		Paths: Paths{
 			RootDir: getRequiredVar(EnvRootDir),
 		},
-		HttpPort:     25009,
+		HttpPort:         25009,
+		WorkerGoroutines: parseInt(getVarWithDefault(EnvWorkerGoroutines, "1")),
 		Postgres: &Postgres{
 			Host:     getRequiredVar(EnvPostgresHost),
 			Port:     parseInt(getVarWithDefault(EnvPostgresPort, "5432")),

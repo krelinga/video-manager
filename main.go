@@ -56,7 +56,7 @@ func main() {
 	})
 
 	// Start task handlers.
-	if err := registry.StartHandlers(context.Background(), *config.Postgres, db); err != nil {
+	if err := registry.StartHandlers(context.Background(), *config.Postgres, db, config.WorkerGoroutines); err != nil {
 		fmt.Printf("Failed to start handlers: %v\n", err)
 		return
 	}

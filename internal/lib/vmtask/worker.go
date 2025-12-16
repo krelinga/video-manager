@@ -20,8 +20,10 @@ const (
 
 // worker processes tasks from the database.
 type worker struct {
-	db       vmdb.DbRunner
-	registry *Registry
+	db        vmdb.DbRunner
+	registry  *Registry
+	taskTypes []string // Only claim tasks of these types
+	workerId  WorkerId // Unique ID for this worker goroutine
 }
 
 // scan looks for a claimable task and processes it.
@@ -34,7 +36,7 @@ func (w *worker) scan(ctx context.Context) (bool, error) {
 	defer tx.Rollback(ctx)
 
 	// Claim a task: either pending, or running with expired lease.
-	workerId := GetWorkerId()
+	// Only claim tasks matching our registered task types.
 	leaseExpires := time.Now().Add(LeaseDuration)
 
 	const claimSQL = `
@@ -44,8 +46,9 @@ func (w *worker) scan(ctx context.Context) (bool, error) {
 		    lease_expires_at = @leaseExpires
 		WHERE id = (
 			SELECT id FROM tasks
-			WHERE (status = 'pending')
-			   OR (status = 'running' AND lease_expires_at < NOW())
+			WHERE ((status = 'pending')
+			   OR (status = 'running' AND lease_expires_at < NOW()))
+			  AND task_type = ANY(@taskTypes)
 			ORDER BY created_at
 			FOR UPDATE SKIP LOCKED
 			LIMIT 1
@@ -58,8 +61,9 @@ func (w *worker) scan(ctx context.Context) (bool, error) {
 		State    []byte
 	}
 	row, err := vmdb.QueryOne[claimRow](ctx, tx, vmdb.Named(claimSQL, map[string]any{
-		"workerId":     string(workerId),
+		"workerId":     string(w.workerId),
 		"leaseExpires": leaseExpires,
+		"taskTypes":    w.taskTypes,
 	}))
 	if errors.Is(err, vmdb.ErrNotFound) {
 		// No tasks to process.
@@ -129,7 +133,6 @@ func (w *worker) heartbeat(ctx context.Context, taskId int) {
 
 // renewLease extends the lease for a running task.
 func (w *worker) renewLease(ctx context.Context, taskId int) error {
-	workerId := GetWorkerId()
 	leaseExpires := time.Now().Add(LeaseDuration)
 
 	const sql = `
@@ -137,7 +140,7 @@ func (w *worker) renewLease(ctx context.Context, taskId int) error {
 		SET lease_expires_at = $3
 		WHERE id = $1 AND worker_id = $2 AND status = 'running'
 	`
-	count, err := vmdb.Exec(ctx, w.db, vmdb.Positional(sql, taskId, string(workerId), leaseExpires))
+	count, err := vmdb.Exec(ctx, w.db, vmdb.Positional(sql, taskId, string(w.workerId), leaseExpires))
 	if err != nil {
 		return err
 	}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -19,21 +18,12 @@ const channelTasks = "tasks"
 // event represents a notification from Postgres.
 type event struct{}
 
-// WorkerId uniquely identifies a worker process.
+// WorkerId uniquely identifies a worker goroutine.
 type WorkerId string
 
-var (
-	workerIdOnce sync.Once
-	workerIdVal  WorkerId
-)
-
-// GetWorkerId returns a unique worker ID. On the first call it generates a UUID,
-// and on subsequent calls it returns the same UUID.
-func GetWorkerId() WorkerId {
-	workerIdOnce.Do(func() {
-		workerIdVal = WorkerId(uuid.New().String())
-	})
-	return workerIdVal
+// newWorkerId generates a new unique worker ID.
+func newWorkerId() WorkerId {
+	return WorkerId(uuid.New().String())
 }
 
 // notify sends a Postgres NOTIFY on the tasks channel.
@@ -132,10 +122,14 @@ func startWorker(ctx context.Context, events <-chan event, fn workerFunc) {
 	}()
 }
 
-// StartHandlers starts the notification listener and task worker.
-func (r *Registry) StartHandlers(ctx context.Context, pgConfig config.Postgres, db vmdb.DbRunner) error {
+// StartHandlers starts the notification listener and task workers.
+// workerGoroutines specifies how many concurrent worker goroutines to run.
+func (r *Registry) StartHandlers(ctx context.Context, pgConfig config.Postgres, db vmdb.DbRunner, workerGoroutines int) error {
 	if r == nil {
 		panic("vmtask: Registry is nil")
+	}
+	if workerGoroutines < 1 {
+		workerGoroutines = 1
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -148,15 +142,25 @@ func (r *Registry) StartHandlers(ctx context.Context, pgConfig config.Postgres, 
 		pg.Close(ctx)
 	})
 
-	// Create event channel for this worker.
+	// Create shared event channel for all workers.
 	events := make(chan event)
 
-	// Create and start the worker.
-	w := &worker{
-		db:       db,
-		registry: r,
+	// Get the task types this registry handles.
+	taskTypes := r.Types()
+	if len(taskTypes) == 0 {
+		log.Printf("vmtask: no handlers registered, workers will not claim any tasks")
 	}
-	startWorker(ctx, events, w.scan)
+
+	// Create and start worker goroutines.
+	for i := 0; i < workerGoroutines; i++ {
+		w := &worker{
+			db:        db,
+			registry:  r,
+			taskTypes: taskTypes,
+			workerId:  newWorkerId(),
+		}
+		startWorker(ctx, events, w.scan)
+	}
 
 	// Listen on the tasks channel.
 	if _, err := pg.Exec(ctx, fmt.Sprintf("LISTEN %q;", channelTasks)); err != nil {
