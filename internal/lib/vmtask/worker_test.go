@@ -11,6 +11,8 @@ import (
 	"github.com/krelinga/video-manager/internal/lib/vmtest"
 )
 
+// TODO: this test needs to be re-thought ... we break a lot of abstraction boundaries here.
+
 // trackingHandler records which tasks it handles for testing.
 type trackingHandler struct {
 	mu       sync.Mutex
@@ -36,8 +38,10 @@ func (h *trackingHandler) getHandled() []int {
 	return result
 }
 
-func TestWorker_OnlyClaimsRegisteredTaskTypes(t *testing.T) {
-	ctx := context.Background()
+func TestScanner_OnlyClaimsRegisteredTaskTypes(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	e := exam.New(t)
 	pg := vmtest.PostgresOnce(e)
 	defer pg.Reset(e)
@@ -60,35 +64,55 @@ func TestWorker_OnlyClaimsRegisteredTaskTypes(t *testing.T) {
 		t.Fatalf("failed to register handler: %v", err)
 	}
 
-	// Create a worker with the registry's task types.
+	// Create a scanner and worker for testing.
+	available := make(chan *worker, 1)
+	events := make(chan event, 1) // TODO: the events channel in prod is unbuffered ... align those.
+
 	w := &worker{
+		db:        db,
+		workerId:  newWorkerId(),
+		work:      make(chan taskAssignment, 1),
+		available: available,
+		done:      make(chan struct{}),
+	}
+
+	s := &scanner{
 		db:        db,
 		registry:  registry,
 		taskTypes: registry.Types(),
-		workerId:  newWorkerId(),
+		available: available,
+		events:    events,
+		done:      make(chan struct{}),
 	}
 
-	// First scan should claim and process type-a task.
-	didWork, err := w.scan(ctx)
+	// Put worker in the available pool.
+	available <- w
+
+	// Scan should claim and assign type-a task.
+	assigned, err := s.scanAndAssign(ctx, w)
 	if err != nil {
 		t.Fatalf("first scan error: %v", err)
 	}
-	if !didWork {
+	if !assigned {
 		t.Fatal("first scan should have found work")
 	}
 
-	// Verify type-a was handled.
-	handled := handler.getHandled()
-	if len(handled) != 1 || handled[0] != typeATaskId {
-		t.Fatalf("expected to handle task %d, got %v", typeATaskId, handled)
+	// Receive the assignment.
+	select {
+	case assignment := <-w.work:
+		if assignment.taskId != typeATaskId {
+			t.Fatalf("expected task %d, got %d", typeATaskId, assignment.taskId)
+		}
+	default:
+		t.Fatal("expected task assignment")
 	}
 
 	// Second scan should find no work (type-b is not in our task types).
-	didWork, err = w.scan(ctx)
+	assigned, err = s.scanAndAssign(ctx, w)
 	if err != nil {
 		t.Fatalf("second scan error: %v", err)
 	}
-	if didWork {
+	if assigned {
 		t.Fatal("second scan should not have found work (type-b not registered)")
 	}
 
@@ -114,8 +138,10 @@ func TestWorker_UniqueWorkerIds(t *testing.T) {
 	}
 }
 
-func TestWorker_WorkerIdStoredInTask(t *testing.T) {
-	ctx := context.Background()
+func TestWorker_ProcessesAssignment(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	e := exam.New(t)
 	pg := vmtest.PostgresOnce(e)
 	defer pg.Reset(e)
@@ -127,65 +153,52 @@ func TestWorker_WorkerIdStoredInTask(t *testing.T) {
 		t.Fatalf("failed to create task: %v", err)
 	}
 
-	// Create a handler that signals when the task is claimed (after DB commit)
-	// and then waits for signal to complete.
-	readyToCheck := make(chan struct{})
-	canComplete := make(chan struct{})
-	checkingHandler := &checkingTestHandler{
-		readyToCheck: readyToCheck,
-		canComplete:  canComplete,
+	// Manually claim the task (simulating what scanner does).
+	const claimSQL = `
+		UPDATE tasks
+		SET status = 'running',
+		    worker_id = $1,
+		    lease_expires_at = $2
+		WHERE id = $3
+	`
+	workerId := newWorkerId()
+	leaseExpires := time.Now().Add(LeaseDuration)
+	if _, err := vmdb.Exec(ctx, db, vmdb.Positional(claimSQL, string(workerId), leaseExpires, taskId)); err != nil {
+		t.Fatalf("failed to claim task: %v", err)
 	}
 
-	registry := &Registry{}
-	if err := registry.Register("test-type", checkingHandler); err != nil {
-		t.Fatalf("failed to register handler: %v", err)
-	}
+	// Create a handler that completes the task.
+	handler := &trackingHandler{complete: true}
 
-	expectedWorkerId := newWorkerId()
+	// Create a worker.
+	available := make(chan *worker, 1)
 	w := &worker{
 		db:        db,
-		registry:  registry,
-		taskTypes: registry.Types(),
-		workerId:  expectedWorkerId,
+		workerId:  workerId,
+		work:      make(chan taskAssignment, 1),
+		available: available,
+		done:      make(chan struct{}),
 	}
 
-	// Run scan in a goroutine.
-	scanDone := make(chan error, 1)
-	go func() {
-		_, err := w.scan(ctx)
-		scanDone <- err
-	}()
-
-	// Wait for handler to signal it's ready for checking.
-	select {
-	case <-readyToCheck:
-	case <-time.After(5 * time.Second):
-		t.Fatal("timeout waiting for handler to be ready")
+	// Send an assignment.
+	w.work <- taskAssignment{
+		taskId:   taskId,
+		taskType: "test-type",
+		state:    nil,
+		handler:  handler,
 	}
 
-	// Check that the task has the correct worker_id.
-	// Note: At this point, the task is claimed and handler is running.
-	// However, the claim happens in a transaction that isn't committed until
-	// after the handler completes. So we need a different approach to test this.
-	// Let's just verify the worker ID format is correct.
-	if len(expectedWorkerId) == 0 {
-		t.Fatal("worker ID should not be empty")
+	// Process the task directly.
+	assignment := <-w.work
+	w.processTask(ctx, assignment)
+
+	// Verify the handler was called.
+	handled := handler.getHandled()
+	if len(handled) != 1 || handled[0] != taskId {
+		t.Fatalf("expected to handle task %d, got %v", taskId, handled)
 	}
 
-	// Signal handler to complete.
-	close(canComplete)
-
-	// Wait for scan to complete.
-	select {
-	case err := <-scanDone:
-		if err != nil {
-			t.Fatalf("scan error: %v", err)
-		}
-	case <-time.After(5 * time.Second):
-		t.Fatal("timeout waiting for scan to complete")
-	}
-
-	// Verify the task completed (handler returns Completed).
+	// Verify the task completed.
 	task, err := Get(ctx, db, taskId)
 	if err != nil {
 		t.Fatalf("failed to get task: %v", err)
@@ -195,14 +208,19 @@ func TestWorker_WorkerIdStoredInTask(t *testing.T) {
 	}
 }
 
-// checkingTestHandler signals when it's ready for checking and waits for permission to complete.
-type checkingTestHandler struct {
-	readyToCheck chan struct{}
-	canComplete  chan struct{}
-}
+func TestRegistry_Wait_NoHandlersStarted(t *testing.T) {
+	// Wait() should not block if StartHandlers was never called.
+	registry := &Registry{}
+	done := make(chan struct{})
+	go func() {
+		registry.Wait()
+		close(done)
+	}()
 
-func (h *checkingTestHandler) Handle(ctx context.Context, db vmdb.Runner, taskId int, taskType string, state []byte) Result {
-	close(h.readyToCheck)
-	<-h.canComplete
-	return Completed()
+	select {
+	case <-done:
+		// Good - Wait() returned immediately.
+	case <-time.After(1 * time.Second):
+		t.Fatal("Wait() should return immediately if StartHandlers was never called")
+	}
 }

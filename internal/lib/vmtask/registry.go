@@ -10,6 +10,26 @@ import (
 type Registry struct {
 	mu       sync.RWMutex
 	handlers map[string]Handler
+	wg       *sync.WaitGroup // Set by StartHandlers for Wait() support.
+}
+
+// setWaitGroup stores a reference to the WaitGroup used by StartHandlers.
+func (r *Registry) setWaitGroup(wg *sync.WaitGroup) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.wg = wg
+}
+
+// Wait blocks until all worker and scanner goroutines have stopped.
+// This should be called after cancelling the context passed to StartHandlers.
+func (r *Registry) Wait() {
+	r.mu.RLock()
+	wg := r.wg
+	r.mu.RUnlock()
+
+	if wg != nil {
+		wg.Wait()
+	}
 }
 
 // Register adds a handler for the given task type.

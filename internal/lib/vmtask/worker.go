@@ -2,7 +2,6 @@ package vmtask
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -18,99 +17,84 @@ const (
 	HeartbeatInterval = 1 * time.Minute
 )
 
-// worker processes tasks from the database.
-type worker struct {
-	db        vmdb.DbRunner
-	registry  *Registry
-	taskTypes []string // Only claim tasks of these types
-	workerId  WorkerId // Unique ID for this worker goroutine
+// taskAssignment represents a claimed task ready to be processed by a worker.
+type taskAssignment struct {
+	taskId   int
+	taskType string
+	state    []byte
+	handler  Handler
 }
 
-// scan looks for a claimable task and processes it.
-func (w *worker) scan(ctx context.Context) (bool, error) {
-	// Use READ COMMITTED since handlers may have side effects.
-	tx, err := w.db.Begin(ctx, vmdb.WithReadCommitted())
-	if err != nil {
-		return false, fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer tx.Rollback(ctx)
+// worker processes tasks assigned by the scanner.
+type worker struct {
+	db       vmdb.DbRunner
+	workerId WorkerId
 
-	// Claim a task: either pending, or running with expired lease.
-	// Only claim tasks matching our registered task types.
-	leaseExpires := time.Now().Add(LeaseDuration)
+	// work receives task assignments from the scanner.
+	work chan taskAssignment
+	// available signals the scanner that this worker is ready for work.
+	available chan<- *worker
+	// done signals that this worker has stopped.
+	done chan struct{}
+}
 
-	const claimSQL = `
-		UPDATE tasks
-		SET status = 'running',
-		    worker_id = @workerId,
-		    lease_expires_at = @leaseExpires
-		WHERE id = (
-			SELECT id FROM tasks
-			WHERE ((status = 'pending')
-			   OR (status = 'running' AND lease_expires_at < NOW()))
-			  AND task_type = ANY(@taskTypes)
-			ORDER BY created_at
-			FOR UPDATE SKIP LOCKED
-			LIMIT 1
-		)
-		RETURNING id, task_type, state
-	`
-	type claimRow struct {
-		Id       int
-		TaskType string
-		State    []byte
-	}
-	row, err := vmdb.QueryOne[claimRow](ctx, tx, vmdb.Named(claimSQL, map[string]any{
-		"workerId":     string(w.workerId),
-		"leaseExpires": leaseExpires,
-		"taskTypes":    w.taskTypes,
-	}))
-	if errors.Is(err, vmdb.ErrNotFound) {
-		// No tasks to process.
-		return false, nil
-	}
-	if err != nil {
-		return false, fmt.Errorf("failed to claim task: %w", err)
-	}
+// run is the main worker loop.
+func (w *worker) run(ctx context.Context) {
+	defer close(w.done)
 
-	// Look up the handler for this task type.
-	if w.registry == nil {
-		panic("vmtask: worker.registry is nil")
-	}
-	handler, exists := w.registry.Get(row.TaskType)
-	if !exists {
-		// No handler registered - mark as failed.
-		log.Printf("vmtask: no handler registered for task type %q (task %d)", row.TaskType, row.Id)
-		if err := w.failTask(ctx, tx, row.Id, fmt.Sprintf("no handler registered for task type %q", row.TaskType)); err != nil {
-			return false, err
+	for {
+		// Signal that we're available for work.
+		select {
+		case <-ctx.Done():
+			return
+		case w.available <- w:
+			// We're now in the available pool.
 		}
-		if err := tx.Commit(ctx); err != nil {
-			return false, fmt.Errorf("failed to commit transaction: %w", err)
-		}
-		return true, nil
-	}
 
+		// Wait for a task assignment.
+		select {
+		case <-ctx.Done():
+			return
+		case assignment, ok := <-w.work:
+			if !ok {
+				return
+			}
+			w.processTask(ctx, assignment)
+		}
+	}
+}
+
+// processTask handles a single task assignment.
+func (w *worker) processTask(ctx context.Context, assignment taskAssignment) {
 	// Set up heartbeat to renew lease while processing.
 	heartbeatCtx, cancelHeartbeat := context.WithCancel(ctx)
 	defer cancelHeartbeat()
-	go w.heartbeat(heartbeatCtx, row.Id)
+	go w.heartbeat(heartbeatCtx, assignment.taskId)
+
+	// Begin a new transaction for the handler.
+	tx, err := w.db.Begin(ctx, vmdb.WithReadCommitted())
+	if err != nil {
+		log.Printf("vmtask: failed to begin transaction for task %d: %v", assignment.taskId, err)
+		return
+	}
+	defer tx.Rollback(ctx)
 
 	// Execute the handler.
-	result := handler.Handle(ctx, tx, row.Id, row.TaskType, row.State)
+	result := assignment.handler.Handle(ctx, tx, assignment.taskId, assignment.taskType, assignment.state)
 
 	// Stop heartbeat before updating final state.
 	cancelHeartbeat()
 
 	// Apply the result.
-	if err := w.applyResult(ctx, tx, row.Id, result); err != nil {
-		return false, err
+	if err := w.applyResult(ctx, tx, assignment.taskId, result); err != nil {
+		log.Printf("vmtask: failed to apply result for task %d: %v", assignment.taskId, err)
+		return
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return false, fmt.Errorf("failed to commit transaction: %w", err)
+		log.Printf("vmtask: failed to commit transaction for task %d: %v", assignment.taskId, err)
+		return
 	}
-
-	return true, nil
 }
 
 // heartbeat periodically renews the lease for a task.

@@ -2,8 +2,10 @@ package vmtask
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -35,91 +37,189 @@ func notify(ctx context.Context, db vmdb.Runner) error {
 	return nil
 }
 
-// workerFunc corresponds to one scan of the backing table.
-// Returns true if any work was done.
-type workerFunc func(context.Context) (bool, error)
-
 const (
 	initialBackoff time.Duration = 100 * time.Millisecond
 	maxBackoff     time.Duration = 30 * time.Second
 	backoffFactor                = 2.0
 )
 
-// startWorker creates a worker goroutine with backoff retry logic.
-func startWorker(ctx context.Context, events <-chan event, fn workerFunc) {
-	needScan := make(chan event, 1)
-	// needScan is never closed because we rely on ctx.Done() to end the worker.
+// scanner claims tasks and dispatches them to available workers.
+type scanner struct {
+	db        vmdb.DbRunner
+	registry  *Registry
+	taskTypes []string
 
-	// Run worker loop.
-	go func() {
-		backoff := initialBackoff
-		for {
+	// available receives workers ready for work.
+	available <-chan *worker
+	// events receives notifications from Postgres.
+	events <-chan event
+	// done signals that the scanner has stopped.
+	done chan struct{}
+}
+
+// run is the main scanner loop.
+func (s *scanner) run(ctx context.Context) {
+	defer close(s.done)
+
+	backoff := initialBackoff
+	needScan := true // Start with an initial scan.
+
+	for {
+		if needScan {
+			// Wait for an available worker before scanning.
+			var w *worker
 			select {
 			case <-ctx.Done():
 				return
-			case <-needScan:
-				for {
+			case w = <-s.available:
+				// Got a worker.
+			}
+
+			// Try to claim and assign a task.
+			assigned, err := s.scanAndAssign(ctx, w)
+			if err != nil {
+				log.Printf("vmtask: scanner error: %v (backing off for %v)", err, backoff)
+				// Return worker to pool on error.
+				go func() {
 					select {
+					case w.available <- w:
 					case <-ctx.Done():
-						// Context cancelled, exit.
-						// This is helpful because we may be in a long-running worker loop.
-						return
-					case <-needScan:
-						// Another scan requested while working, we can sweep that up in the current run.
-					default:
-						// No more pending scan requests, just keep processing the current one.
 					}
-					didWork, err := fn(ctx)
-					if err != nil {
-						// Log error and back off before retrying.
-						log.Printf("Worker error: %v (backing off for %v)", err, backoff)
-						select {
-						case <-time.After(backoff):
-							// Increase backoff for next error, up to maxBackoff.
-							backoff = min(time.Duration(float64(backoff)*backoffFactor), maxBackoff)
-						case <-ctx.Done():
-							return
-						}
-						// Continue to retry after backoff.
-					} else {
-						// Reset backoff on success.
-						backoff = initialBackoff
-						if !didWork {
-							// No more work to do.
-							break
-						}
-					}
-					// Continue scanning while work is being done.
+				}()
+				// Back off before retrying.
+				select {
+				case <-time.After(backoff):
+					backoff = min(time.Duration(float64(backoff)*backoffFactor), maxBackoff)
+				case <-ctx.Done():
+					return
 				}
+				continue
+			}
+
+			// Reset backoff on success.
+			backoff = initialBackoff
+
+			if !assigned {
+				// No task found, return worker to pool and wait for events.
+				go func() {
+					select {
+					case w.available <- w:
+					case <-ctx.Done():
+					}
+				}()
+				needScan = false
+			}
+			// If assigned, continue scanning (there may be more tasks).
+		} else {
+			// Wait for an event notification.
+			select {
+			case <-ctx.Done():
+				return
+			case <-s.events:
+				needScan = true
 			}
 		}
-	}()
+	}
+}
 
-	// Request initial scan.
-	select {
-	case needScan <- event{}:
-		// Scan requested.
-	case <-ctx.Done():
-		return
+// scanAndAssign claims a task and assigns it to the given worker.
+// Returns true if a task was assigned, false if no tasks available.
+func (s *scanner) scanAndAssign(ctx context.Context, w *worker) (bool, error) {
+	// Claim a task in a short transaction.
+	tx, err := s.db.Begin(ctx, vmdb.WithReadCommitted())
+	if err != nil {
+		return false, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	// Claim a task: either pending, or running with expired lease.
+	leaseExpires := time.Now().Add(LeaseDuration)
+
+	const claimSQL = `
+		UPDATE tasks
+		SET status = 'running',
+		    worker_id = @workerId,
+		    lease_expires_at = @leaseExpires
+		WHERE id = (
+			SELECT id FROM tasks
+			WHERE ((status = 'pending')
+			   OR (status = 'running' AND lease_expires_at < NOW()))
+			  AND task_type = ANY(@taskTypes)
+			ORDER BY created_at
+			FOR UPDATE SKIP LOCKED
+			LIMIT 1
+		)
+		RETURNING id, task_type, state
+	`
+	type claimRow struct {
+		Id       int
+		TaskType string
+		State    []byte
+	}
+	row, err := vmdb.QueryOne[claimRow](ctx, tx, vmdb.Named(claimSQL, map[string]any{
+		"workerId":     string(w.workerId),
+		"leaseExpires": leaseExpires,
+		"taskTypes":    s.taskTypes,
+	}))
+	if errors.Is(err, vmdb.ErrNotFound) {
+		// No tasks to process.
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("failed to claim task: %w", err)
 	}
 
-	// Listen for events and trigger scans.
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-events:
-				// Start a scan if one is not already running.
-				select {
-				case needScan <- event{}:
-					// Scan requested.
-				default:
-					// Scan already requested.
-				}
-			}
+	// Commit the claim before dispatching to worker.
+	if err := tx.Commit(ctx); err != nil {
+		return false, fmt.Errorf("failed to commit claim: %w", err)
+	}
+
+	// Look up the handler for this task type.
+	handler, exists := s.registry.Get(row.TaskType)
+	if !exists {
+		// No handler registered - this shouldn't happen since we filter by taskTypes,
+		// but handle it gracefully by failing the task.
+		log.Printf("vmtask: no handler registered for task type %q (task %d)", row.TaskType, row.Id)
+		if err := s.failTaskDirect(ctx, row.Id, fmt.Sprintf("no handler registered for task type %q", row.TaskType)); err != nil {
+			log.Printf("vmtask: failed to mark unhandled task %d as failed: %v", row.Id, err)
 		}
-	}()
+		// Return worker to pool.
+		go func() {
+			select {
+			case w.available <- w:
+			case <-ctx.Done():
+			}
+		}()
+		return true, nil
+	}
+
+	// Dispatch to worker.
+	select {
+	case w.work <- taskAssignment{
+		taskId:   row.Id,
+		taskType: row.TaskType,
+		state:    row.State,
+		handler:  handler,
+	}:
+		// Task assigned.
+	case <-ctx.Done():
+		return false, ctx.Err()
+	}
+
+	return true, nil
+}
+
+// failTaskDirect marks a task as failed without a transaction.
+func (s *scanner) failTaskDirect(ctx context.Context, taskId int, errMsg string) error {
+	const sql = `
+		UPDATE tasks
+		SET status = 'failed', error = $2, worker_id = NULL, lease_expires_at = NULL
+		WHERE id = $1
+	`
+	if _, err := vmdb.Exec(ctx, s.db, vmdb.Positional(sql, taskId, errMsg)); err != nil {
+		return fmt.Errorf("failed to fail task: %w", err)
+	}
+	return nil
 }
 
 // StartHandlers starts the notification listener and task workers.
@@ -142,25 +242,50 @@ func (r *Registry) StartHandlers(ctx context.Context, pgConfig config.Postgres, 
 		pg.Close(ctx)
 	})
 
-	// Create shared event channel for all workers.
-	events := make(chan event)
-
 	// Get the task types this registry handles.
 	taskTypes := r.Types()
 	if len(taskTypes) == 0 {
 		log.Printf("vmtask: no handlers registered, workers will not claim any tasks")
 	}
 
+	// Create channels.
+	available := make(chan *worker, workerGoroutines)
+	events := make(chan event)
+
+	// Track all goroutines for Wait().
+	var wg sync.WaitGroup
+	r.setWaitGroup(&wg)
+
 	// Create and start worker goroutines.
 	for i := 0; i < workerGoroutines; i++ {
 		w := &worker{
 			db:        db,
-			registry:  r,
-			taskTypes: taskTypes,
 			workerId:  newWorkerId(),
+			work:      make(chan taskAssignment),
+			available: available,
+			done:      make(chan struct{}),
 		}
-		startWorker(ctx, events, w.scan)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			w.run(ctx)
+		}()
 	}
+
+	// Create and start the scanner.
+	s := &scanner{
+		db:        db,
+		registry:  r,
+		taskTypes: taskTypes,
+		available: available,
+		events:    events,
+		done:      make(chan struct{}),
+	}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		s.run(ctx)
+	}()
 
 	// Listen on the tasks channel.
 	if _, err := pg.Exec(ctx, fmt.Sprintf("LISTEN %q;", channelTasks)); err != nil {
@@ -168,8 +293,10 @@ func (r *Registry) StartHandlers(ctx context.Context, pgConfig config.Postgres, 
 		return fmt.Errorf("failed to LISTEN on channel %q: %w", channelTasks, err)
 	}
 
-	// Dispatch notifications to the worker.
+	// Dispatch notifications to the scanner.
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		defer cancel()
 		for {
 			if ctx.Err() != nil {
@@ -181,7 +308,11 @@ func (r *Registry) StartHandlers(ctx context.Context, pgConfig config.Postgres, 
 				return
 			}
 			if notification.Channel == channelTasks {
-				events <- event{}
+				select {
+				case events <- event{}:
+				case <-ctx.Done():
+					return
+				}
 			}
 		}
 	}()
