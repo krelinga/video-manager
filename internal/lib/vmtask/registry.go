@@ -5,39 +5,70 @@ import (
 	"sync"
 )
 
-var (
-	registryMu sync.RWMutex
-	registry   = make(map[string]Handler)
-)
+// Registry tracks handler registrations for task types.
+// The zero value is ready to use.
+type Registry struct {
+	mu       sync.RWMutex
+	handlers map[string]Handler
+}
 
 // Register adds a handler for the given task type.
-// This should be called during init() for each task type.
-// Panics if a handler is already registered for the given type.
-func Register(taskType string, handler Handler) {
-	registryMu.Lock()
-	defer registryMu.Unlock()
-
-	if _, exists := registry[taskType]; exists {
-		panic(fmt.Sprintf("vmtask: handler already registered for task type %q", taskType))
+// Returns an error if a handler is already registered for the given type.
+func (r *Registry) Register(taskType string, handler Handler) error {
+	if r == nil {
+		panic("vmtask: Registry is nil")
 	}
-	registry[taskType] = handler
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	// Lazy initialization
+	if r.handlers == nil {
+		r.handlers = make(map[string]Handler)
+	}
+
+	if _, exists := r.handlers[taskType]; exists {
+		return fmt.Errorf("vmtask: handler already registered for task type %q", taskType)
+	}
+	r.handlers[taskType] = handler
+	return nil
 }
 
-// getHandler returns the handler for the given task type, or nil if not found.
-func getHandler(taskType string) Handler {
-	registryMu.RLock()
-	defer registryMu.RUnlock()
-	return registry[taskType]
+// MustRegister adds a handler for the given task type.
+// Panics if a handler is already registered for the given type.
+func (r *Registry) MustRegister(taskType string, handler Handler) {
+	if err := r.Register(taskType, handler); err != nil {
+		panic(err)
+	}
 }
 
-// RegisteredTypes returns a list of all registered task types.
+// Get returns the handler for the given task type.
+// Returns (handler, true) if found, (nil, false) if not found.
+// Panics if the receiver is nil.
+func (r *Registry) Get(taskType string) (Handler, bool) {
+	if r == nil {
+		panic("vmtask: Registry is nil")
+	}
+
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	handler, exists := r.handlers[taskType]
+	return handler, exists
+}
+
+// Types returns a list of all registered task types.
 // Useful for debugging and testing.
-func RegisteredTypes() []string {
-	registryMu.RLock()
-	defer registryMu.RUnlock()
+func (r *Registry) Types() []string {
+	if r == nil {
+		panic("vmtask: Registry is nil")
+	}
 
-	types := make([]string, 0, len(registry))
-	for t := range registry {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	types := make([]string, 0, len(r.handlers))
+	for t := range r.handlers {
 		types = append(types, t)
 	}
 	return types

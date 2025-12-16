@@ -51,13 +51,14 @@ func main() {
 	}
 
 	// Register task handlers.
-	vmtask.Register(media.TaskTypeDvdIngestion, &media.DvdIngestionHandler{
+	registry := &vmtask.Registry{}
+	registry.MustRegister(media.TaskTypeDvdIngestion, &media.DvdIngestionHandler{
 		Paths: config.Paths,
 	})
 
 	// Start workers.
 	workers := []vmnotify.Starter{
-		&vmtask.Worker{Db: db},
+		&vmtask.Worker{Db: db, Registry: registry},
 	}
 	if err := vmnotify.Start(context.Background(), *config.Postgres, workers...); err != nil {
 		fmt.Printf("Failed to start workers: %v\n", err)

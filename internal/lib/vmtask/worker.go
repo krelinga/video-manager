@@ -24,7 +24,8 @@ const (
 
 // Worker processes tasks from the database.
 type Worker struct {
-	Db vmdb.DbRunner
+	Db       vmdb.DbRunner
+	Registry *Registry
 }
 
 // Start implements vmnotify.Starter.
@@ -79,8 +80,11 @@ func (w *Worker) scan(ctx context.Context) (bool, error) {
 	}
 
 	// Look up the handler for this task type.
-	handler := getHandler(row.TaskType)
-	if handler == nil {
+	if w.Registry == nil {
+		panic("vmtask: Worker.Registry is nil")
+	}
+	handler, exists := w.Registry.Get(row.TaskType)
+	if !exists {
 		// No handler registered - mark as failed.
 		log.Printf("vmtask: no handler registered for task type %q (task %d)", row.TaskType, row.Id)
 		if err := w.failTask(ctx, tx, row.Id, fmt.Sprintf("no handler registered for task type %q", row.TaskType)); err != nil {
