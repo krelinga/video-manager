@@ -91,28 +91,12 @@ CREATE TABLE IF NOT EXISTS media (
         FOREIGN KEY (media_set_id) REFERENCES media_sets(id)
 );
 
--- Create media_dvd_ingestion_state enum type (if it doesn't already exist)
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'media_dvd_ingestion_state') THEN
-    CREATE TYPE media_dvd_ingestion_state AS ENUM ('pending', 'done', 'error');
-  END IF;
-END
-$$;
-
 -- Create media_dvds table
--- TODO: add unique constraint on path.
 CREATE TABLE IF NOT EXISTS media_dvds (
     media_id INTEGER PRIMARY KEY,
     path TEXT NOT NULL CHECK (path <> ''),
-    ingestion_state media_dvd_ingestion_state NOT NULL DEFAULT 'pending',
-    ingestion_error TEXT,
     CONSTRAINT fk_media_dvds_media_id 
-        FOREIGN KEY (media_id) REFERENCES media(id) ON DELETE CASCADE,
-    CHECK (
-        (ingestion_state = 'error' AND ingestion_error IS NOT NULL) OR
-        (ingestion_state <> 'error' AND ingestion_error IS NULL)
-    )
+        FOREIGN KEY (media_id) REFERENCES media(id) ON DELETE CASCADE
 );
 
 -- A trigger to ensure that the media record is deleted when the corresponding media_dvd is deleted.
@@ -152,3 +136,57 @@ CREATE TABLE IF NOT EXISTS media_sets_x_cards (
     CONSTRAINT fk_media_sets_cards_card_id 
         FOREIGN KEY (card_id) REFERENCES catalog_cards(id) ON DELETE CASCADE
 );
+
+-- Create task_status enum
+CREATE TYPE task_status AS ENUM ('pending', 'running', 'waiting', 'completed', 'failed');
+
+-- Create tasks table
+CREATE TABLE IF NOT EXISTS tasks (
+    id SERIAL PRIMARY KEY,
+    task_type TEXT NOT NULL CHECK (task_type <> ''),
+    state JSONB NOT NULL DEFAULT '{}',
+    status task_status NOT NULL DEFAULT 'pending',
+    worker_id TEXT,
+    lease_expires_at TIMESTAMPTZ,
+    error TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    -- worker_id and lease_expires_at must be set together when running
+    CHECK (
+        (status = 'running' AND worker_id IS NOT NULL AND lease_expires_at IS NOT NULL) OR
+        (status <> 'running' AND worker_id IS NULL AND lease_expires_at IS NULL)
+    ),
+    -- error must be set iff status is failed
+    CHECK (
+        (status = 'failed' AND error IS NOT NULL) OR
+        (status <> 'failed' AND error IS NULL)
+    )
+);
+
+-- Index for finding claimable tasks (pending or expired leases)
+CREATE INDEX IF NOT EXISTS idx_tasks_claimable ON tasks (status, lease_expires_at)
+WHERE status IN ('pending', 'running');
+
+-- Index for finding tasks by type
+CREATE INDEX IF NOT EXISTS idx_tasks_type ON tasks (task_type);
+
+-- Trigger to update updated_at on row modification
+CREATE OR REPLACE FUNCTION update_tasks_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_update_tasks_updated_at ON tasks;
+
+CREATE TRIGGER trg_update_tasks_updated_at
+BEFORE UPDATE ON tasks
+FOR EACH ROW
+EXECUTE FUNCTION update_tasks_updated_at();
+
+-- Add index for looking up dvd_ingestion tasks by media_id
+CREATE INDEX IF NOT EXISTS idx_tasks_dvd_ingestion_media_id
+ON tasks (task_type, ((state->>'media_id')::integer))
+WHERE task_type = 'dvd_ingestion';

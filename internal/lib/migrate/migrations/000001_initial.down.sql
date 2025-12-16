@@ -1,6 +1,21 @@
 -- Drop all tables and related objects in reverse order of creation.
--- Group tables together with their immeidate dependencies (functions and triggers) for clarity.
 
+-- Drop the index for dvd_ingestion task lookups
+DROP INDEX IF EXISTS idx_tasks_dvd_ingestion_media_id;
+
+-- Drop trigger and function for tasks
+DROP TRIGGER IF EXISTS trg_update_tasks_updated_at ON tasks;
+DROP FUNCTION IF EXISTS update_tasks_updated_at();
+
+-- Drop tasks table and indexes
+DROP INDEX IF EXISTS idx_tasks_type;
+DROP INDEX IF EXISTS idx_tasks_claimable;
+DROP TABLE IF EXISTS tasks;
+
+-- Drop task_status enum
+DROP TYPE IF EXISTS task_status;
+
+-- Drop media and catalog tables
 DROP TABLE IF EXISTS media_sets_x_cards;
 
 DROP TABLE IF EXISTS media_x_cards;
@@ -25,5 +40,3 @@ DROP FUNCTION IF EXISTS delete_movie_card();
 DROP TABLE IF EXISTS catalog_movies;
 
 DROP TABLE IF EXISTS catalog_cards;
-
-DROP TYPE IF EXISTS media_dvd_ingestion_state;
