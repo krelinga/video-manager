@@ -104,7 +104,7 @@ func (w *Worker) scan(ctx context.Context) (bool, error) {
 		taskId:   row.Id,
 		taskType: row.TaskType,
 	}
-	result := handler(taskCtx, row.State)
+	result := handler.Handle(taskCtx, row.State)
 
 	// Stop heartbeat before updating final state.
 	cancelHeartbeat()

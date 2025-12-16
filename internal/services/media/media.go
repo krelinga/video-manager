@@ -8,8 +8,8 @@ import (
 	"github.com/krelinga/video-manager-api/go/vmapi"
 	"github.com/krelinga/video-manager/internal/lib/vmdb"
 	"github.com/krelinga/video-manager/internal/lib/vmerr"
-	"github.com/krelinga/video-manager/internal/lib/vmnotify"
 	"github.com/krelinga/video-manager/internal/lib/vmpage"
+	"github.com/krelinga/video-manager/internal/lib/vmtask"
 )
 
 func (ms *MediaService) ListMedia(ctx context.Context, request vmapi.ListMediaRequestObject) (vmapi.ListMediaResponseObject, error) {
@@ -17,9 +17,12 @@ func (ms *MediaService) ListMedia(ctx context.Context, request vmapi.ListMediaRe
 		SELECT 
 			m.id, m.media_set_id, m.note,
 			d.media_id IS NOT NULL AS is_dvd,
-			d.path, d.ingestion_state, d.ingestion_error
+			d.path,
+			t.status AS task_status,
+			t.error AS task_error
 		FROM media m
 		LEFT JOIN media_dvds d ON d.media_id = m.id
+		LEFT JOIN tasks t ON t.task_type = 'dvd_ingestion' AND (t.state->>'media_id')::integer = m.id
 		WHERE m.id > @lastSeenId
 		ORDER BY m.id ASC
 		LIMIT @limit;
@@ -40,13 +43,13 @@ func (ms *MediaService) ListMedia(ctx context.Context, request vmapi.ListMediaRe
 		PageToken: request.Params.PageToken,
 	}
 	type row struct {
-		Id             uint32
-		MediaSetId     *uint32
-		Note           *string
-		IsDvd          bool
-		Path           *string
-		IngestionState *string
-		IngestionError *string
+		Id         uint32
+		MediaSetId *uint32
+		Note       *string
+		IsDvd      bool
+		Path       *string
+		TaskStatus *vmtask.Status
+		TaskError  *string
 	}
 	nextPageToken, err := vmpage.ListPtr(ctx, tx, query, func(r *row) uint32 {
 		media := vmapi.Media{
@@ -54,14 +57,12 @@ func (ms *MediaService) ListMedia(ctx context.Context, request vmapi.ListMediaRe
 			MediaSetId: r.MediaSetId,
 			Note:       r.Note,
 		}
-		if r.IsDvd && r.Path != nil && r.IngestionState != nil {
+		if r.IsDvd && r.Path != nil {
+			ingestion := taskStatusToDvdIngestion(r.TaskStatus, r.TaskError)
 			media.Details = &vmapi.MediaDetails{
 				Dvd: &vmapi.DVD{
-					Path: *r.Path,
-					Ingestion: vmapi.DVDIngestion{
-						State:        vmapi.DVDIngestionState(*r.IngestionState),
-						ErrorMessage: r.IngestionError,
-					},
+					Path:      *r.Path,
+					Ingestion: ingestion,
 				},
 			}
 		}
@@ -166,8 +167,8 @@ func (ms *MediaService) PostMedia(ctx context.Context, request vmapi.PostMediaRe
 		return nil, err
 	}
 
-	if err := vmnotify.Notify(ctx, tx, ChannelDvdIngestion); err != nil {
-		return nil, fmt.Errorf("could not notify %q: %w", ChannelDvdIngestion, err)
+	if _, err := CreateDvdIngestionTask(ctx, tx, mediaId); err != nil {
+		return nil, fmt.Errorf("could not create DVD ingestion task: %w", err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
@@ -207,20 +208,21 @@ func getMediaCardIds(ctx context.Context, runner vmdb.Runner, mediaId uint32) ([
 	return cardIds, nil
 }
 
-func validateDvdIngestion(in *vmapi.DVDIngestion) error {
-	switch in.State {
-	case vmapi.DVDIngestionStatePending, vmapi.DVDIngestionStateDone:
-		if in.ErrorMessage != nil {
-			return vmerr.BadRequest(fmt.Errorf("error message must be nil when ingestion state is %s", in.State))
-		}
-	case vmapi.DVDIngestionStateError:
-		if in.ErrorMessage == nil || *in.ErrorMessage == "" {
-			return vmerr.BadRequest(fmt.Errorf("error message must be non-nil and non-empty when ingestion state is %s", in.State))
-		}
-	default:
-		return vmerr.BadRequest(fmt.Errorf("invalid ingestion state: %s", in.State))
+// taskStatusToDvdIngestion converts a task status to DVDIngestion API type.
+func taskStatusToDvdIngestion(status *vmtask.Status, taskError *string) vmapi.DVDIngestion {
+	if status == nil {
+		// No task found - treat as pending (this shouldn't happen normally)
+		return vmapi.DVDIngestion{State: vmapi.DVDIngestionStatePending}
 	}
-	return nil
+	switch *status {
+	case vmtask.StatusCompleted:
+		return vmapi.DVDIngestion{State: vmapi.DVDIngestionStateDone}
+	case vmtask.StatusFailed:
+		return vmapi.DVDIngestion{State: vmapi.DVDIngestionStateError, ErrorMessage: taskError}
+	default:
+		// pending, running, waiting all map to pending from API perspective
+		return vmapi.DVDIngestion{State: vmapi.DVDIngestionStatePending}
+	}
 }
 
 // We need a transaction for this because multiple queries are run inside this helper function.
@@ -229,19 +231,22 @@ func getMedia(ctx context.Context, tx vmdb.TxRunner, id uint32) (vmapi.Media, er
 		SELECT 
 			m.id, m.media_set_id, m.note,
 			d.media_id IS NOT NULL AS is_dvd,
-			d.path, d.ingestion_state, d.ingestion_error
+			d.path,
+			t.status AS task_status,
+			t.error AS task_error
 		FROM media m
 		LEFT JOIN media_dvds d ON d.media_id = m.id
+		LEFT JOIN tasks t ON t.task_type = 'dvd_ingestion' AND (t.state->>'media_id')::integer = m.id
 		WHERE m.id = $1;
 	`
 	type row struct {
-		Id             uint32
-		MediaSetId     *uint32
-		Note           *string
-		IsDvd          bool
-		Path           *string
-		IngestionState *string
-		IngestionError *string
+		Id         uint32
+		MediaSetId *uint32
+		Note       *string
+		IsDvd      bool
+		Path       *string
+		TaskStatus *vmtask.Status
+		TaskError  *string
 	}
 	r, err := vmdb.QueryOne[row](ctx, tx, vmdb.Positional(sql, id))
 	if errors.Is(err, vmdb.ErrNotFound) {
@@ -255,14 +260,12 @@ func getMedia(ctx context.Context, tx vmdb.TxRunner, id uint32) (vmapi.Media, er
 		MediaSetId: r.MediaSetId,
 		Note:       r.Note,
 	}
-	if r.IsDvd && r.Path != nil && r.IngestionState != nil {
+	if r.IsDvd && r.Path != nil {
+		ingestion := taskStatusToDvdIngestion(r.TaskStatus, r.TaskError)
 		media.Details = &vmapi.MediaDetails{
 			Dvd: &vmapi.DVD{
-				Path: *r.Path,
-				Ingestion: vmapi.DVDIngestion{
-					State:        vmapi.DVDIngestionState(*r.IngestionState),
-					ErrorMessage: r.IngestionError,
-				},
+				Path:      *r.Path,
+				Ingestion: ingestion,
 			},
 		}
 	}
@@ -422,19 +425,11 @@ func (ms *MediaService) PatchMedia(ctx context.Context, request vmapi.PatchMedia
 			}
 			dvdPatch := patch.Dvd
 
-			// Validate that exactly one field is set
-			fieldsSetInDvd := 0
-			if dvdPatch.Path != nil {
-				fieldsSetInDvd++
-			}
-			if dvdPatch.Ingestion != nil {
-				fieldsSetInDvd++
-			}
-			if fieldsSetInDvd != 1 {
-				return nil, vmerr.BadRequest(errors.New("exactly one field must be set in DVD patch"))
+			if dvdPatch.Path == nil {
+				return nil, vmerr.BadRequest(errors.New("path must be set in DVD patch"))
 			}
 
-			if dvdPatch.Path != nil {
+			{
 				path := *dvdPatch.Path
 				if path == "" {
 					return nil, vmerr.BadRequest(errors.New("path cannot be empty"))
@@ -453,20 +448,6 @@ func (ms *MediaService) PatchMedia(ctx context.Context, request vmapi.PatchMedia
 				rowsAffected, err := vmdb.Exec(ctx, tx, vmdb.Positional(query, path, id))
 				if err != nil {
 					return nil, fmt.Errorf("could not update path: %w", err)
-				}
-				if rowsAffected == 0 {
-					return nil, vmerr.NotFound(fmt.Errorf("DVD details for media id %d not found", id))
-				}
-			}
-
-			if dvdPatch.Ingestion != nil {
-				if err := validateDvdIngestion(dvdPatch.Ingestion); err != nil {
-					return nil, err
-				}
-				const query = "UPDATE media_dvds SET ingestion_state = $1, ingestion_error = $2 WHERE media_id = $3;"
-				rowsAffected, err := vmdb.Exec(ctx, tx, vmdb.Positional(query, string(dvdPatch.Ingestion.State), dvdPatch.Ingestion.ErrorMessage, id))
-				if err != nil {
-					return nil, fmt.Errorf("could not update ingestion_state: %w", err)
 				}
 				if rowsAffected == 0 {
 					return nil, vmerr.NotFound(fmt.Errorf("DVD details for media id %d not found", id))

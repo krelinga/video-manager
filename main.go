@@ -10,6 +10,7 @@ import (
 	"github.com/krelinga/video-manager/internal/lib/migrate"
 	"github.com/krelinga/video-manager/internal/lib/vmdb"
 	"github.com/krelinga/video-manager/internal/lib/vmnotify"
+	"github.com/krelinga/video-manager/internal/lib/vmtask"
 	"github.com/krelinga/video-manager/internal/services/catalog"
 	"github.com/krelinga/video-manager/internal/services/inbox"
 	"github.com/krelinga/video-manager/internal/services/media"
@@ -49,12 +50,14 @@ func main() {
 		return
 	}
 
+	// Register task handlers.
+	vmtask.Register(media.TaskTypeDvdIngestion, &media.DvdIngestionHandler{
+		Paths: config.Paths,
+	})
+
 	// Start workers.
 	workers := []vmnotify.Starter{
-		&media.DvdIngestionWorker{
-			Db: db,
-			Paths: config.Paths,
-		},
+		&vmtask.Worker{Db: db},
 	}
 	if err := vmnotify.Start(context.Background(), *config.Postgres, workers...); err != nil {
 		fmt.Printf("Failed to start workers: %v\n", err)

@@ -19,10 +19,10 @@ func Create(ctx context.Context, db vmdb.Runner, taskType string, state []byte) 
 
 	const sql = `
 		INSERT INTO tasks (task_type, state)
-		VALUES ($1, $2)
+		VALUES ($1, $2::jsonb)
 		RETURNING id
 	`
-	id, err := vmdb.QueryOne[int](ctx, db, vmdb.Positional(sql, taskType, state))
+	id, err := vmdb.QueryOne[int](ctx, db, vmdb.Positional(sql, taskType, string(state)))
 	if err != nil {
 		return 0, fmt.Errorf("failed to create task: %w", err)
 	}

@@ -10,11 +10,13 @@ import (
 	"github.com/krelinga/go-libs/match"
 	"github.com/krelinga/video-manager-api/go/vmapi"
 	"github.com/krelinga/video-manager/internal/lib/config"
+	"github.com/krelinga/video-manager/internal/lib/vmdb"
+	"github.com/krelinga/video-manager/internal/lib/vmtask"
 	"github.com/krelinga/video-manager/internal/lib/vmtest"
 	"github.com/krelinga/video-manager/internal/services/media"
 )
 
-func TestDvdIngestionWorker(t *testing.T) {
+func TestDvdIngestionHandler(t *testing.T) {
 	ctx := context.Background()
 	e := exam.New(t)
 	env := deep.NewEnv()
@@ -24,19 +26,13 @@ func TestDvdIngestionWorker(t *testing.T) {
 	mediaService := NewMediaService(e, pg)
 
 	tests := []struct {
-		loc         exam.Loc
-		name        string
-		setup       func(e exam.E, paths config.Paths) []uint32
-		wantDidWork match.Matcher
-		wantErr     match.Matcher
-		check       func(e exam.E, paths config.Paths, ids []uint32)
+		loc        exam.Loc
+		name       string
+		setup      func(e exam.E, paths config.Paths) []uint32
+		wantStatus vmtask.Status
+		wantError  match.Matcher
+		check      func(e exam.E, paths config.Paths, ids []uint32)
 	}{
-		{
-			loc:         exam.Here(),
-			name:        "No work to do",
-			wantDidWork: match.Equal(false),
-			wantErr:     match.Nil(),
-		},
 		{
 			loc:  exam.Here(),
 			name: "Move one directory",
@@ -56,8 +52,8 @@ func TestDvdIngestionWorker(t *testing.T) {
 				exam.Nil(e, env, err).Log(err).Must()
 				return []uint32{postResp.(vmapi.PostMedia201JSONResponse).Id}
 			},
-			wantDidWork: match.Equal(true),
-			wantErr:     match.Nil(),
+			wantStatus: vmtask.StatusCompleted,
+			wantError:  match.Nil(),
 			check: func(e exam.E, paths config.Paths, ids []uint32) {
 				id := ids[0]
 				// Check that the directory was moved
@@ -90,8 +86,8 @@ func TestDvdIngestionWorker(t *testing.T) {
 				exam.Nil(e, env, err).Log(err).Must()
 				return []uint32{postResp.(vmapi.PostMedia201JSONResponse).Id}
 			},
-			wantDidWork: match.Equal(true),
-			wantErr:     match.Nil(),
+			wantStatus: vmtask.StatusFailed,
+			wantError:  match.Not(match.Nil()),
 			check: func(e exam.E, paths config.Paths, ids []uint32) {
 				id := ids[0]
 				// Check that the media record was updated to error state
@@ -115,20 +111,78 @@ func TestDvdIngestionWorker(t *testing.T) {
 			if err := paths.Bootstrap(); err != nil {
 				e.Fatalf("failed to bootstrap paths: %v", err)
 			}
-			worker := &media.DvdIngestionWorker{
-				Db:    db,
+			handler := &media.DvdIngestionHandler{
 				Paths: paths,
 			}
 			var ids []uint32
 			if tt.setup != nil {
 				ids = tt.setup(e, paths)
 			}
-			didWork, err := worker.Scan(ctx)
-			exam.Match(e, env, err, tt.wantErr).Log(err).Must()
-			exam.Match(e, env, didWork, tt.wantDidWork).Log(didWork)
+
+			// Get the task that was created
+			task, err := media.GetDvdIngestionTask(ctx, db, ids[0])
+			exam.Nil(e, env, err).Log(err).Must()
+			exam.Match(e, env, task, match.Not(match.Nil())).Log("task should exist").Must()
+
+			// Execute the handler within a transaction
+			tx, err := db.Begin(ctx)
+			exam.Nil(e, env, err).Log(err).Must()
+			defer tx.Rollback(ctx)
+
+			taskCtx := &testTaskContext{
+				Context:   ctx,
+				db:        tx,
+				taskId:    task.Id,
+				taskTypeV: task.TaskType,
+			}
+			result := handler.Handle(taskCtx, task.State)
+
+			// Apply the result to the task
+			if result.NewStatus == vmtask.StatusFailed {
+				_, err = vmdb.Exec(ctx, tx, vmdb.Positional(
+					`UPDATE tasks SET status = 'failed', error = $2, worker_id = NULL, lease_expires_at = NULL WHERE id = $1`,
+					task.Id, result.Error))
+			} else {
+				_, err = vmdb.Exec(ctx, tx, vmdb.Positional(
+					`UPDATE tasks SET status = $2, worker_id = NULL, lease_expires_at = NULL WHERE id = $1`,
+					task.Id, string(result.NewStatus)))
+			}
+			exam.Nil(e, env, err).Log(err).Must()
+
+			err = tx.Commit(ctx)
+			exam.Nil(e, env, err).Log(err).Must()
+
+			exam.Equal(e, env, result.NewStatus, tt.wantStatus).Log(result)
+			if tt.wantError != nil {
+				var errPtr *string
+				if result.Error != "" {
+					errPtr = &result.Error
+				}
+				exam.Match(e, env, errPtr, tt.wantError).Log(result.Error)
+			}
 			if tt.check != nil {
 				tt.check(e, paths, ids)
 			}
 		})
 	}
+}
+
+// testTaskContext implements vmtask.Context for testing
+type testTaskContext struct {
+	context.Context
+	db        vmdb.Runner
+	taskId    int
+	taskTypeV string
+}
+
+func (c *testTaskContext) Db() vmdb.Runner {
+	return c.db
+}
+
+func (c *testTaskContext) TaskId() int {
+	return c.taskId
+}
+
+func (c *testTaskContext) TaskType() string {
+	return c.taskTypeV
 }

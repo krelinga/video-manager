@@ -42,13 +42,15 @@ type Result struct {
 }
 
 // Handler processes a task and returns a Result indicating next steps.
-// The handler receives the current state JSON and should return:
+// Implementations should return:
 // - StatusPending: re-queue for immediate retry (e.g., after updating state)
 // - StatusRunning: should not be returned (system manages this)
 // - StatusWaiting: pause until external event resumes the task
 // - StatusCompleted: task finished successfully
 // - StatusFailed: task encountered a permanent error
-type Handler func(ctx Context, state []byte) Result
+type Handler interface {
+	Handle(ctx Context, state []byte) Result
+}
 
 // Pending returns a Result that re-queues the task with updated state.
 func Pending(newState []byte) Result {
