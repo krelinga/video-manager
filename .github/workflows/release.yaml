@@ -14,7 +14,7 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  test:
     runs-on: ubuntu-latest
 
     steps:
@@ -48,6 +48,25 @@ jobs:
       - name: Run Go tests
         run: go test ./... -v
 
+  build-images:
+    needs: test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        variant:
+          - name: base
+            include_ffmpeg: "false"
+            tags_suffix: ""
+            tags_moving: latest
+          - name: ffmpeg
+            include_ffmpeg: "true"
+            tags_suffix: -ffmpeg
+            tags_moving: ffmpeg
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -63,14 +82,24 @@ jobs:
           echo "REPO_NAME=$REPO_NAME" >> $GITHUB_ENV
           echo "Repository name: $REPO_NAME"
 
-      - name: Build and push Docker image
+      - name: Build and push Docker image (${{ matrix.variant.name }})
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
+          build-args: |
+            INCLUDE_FFMPEG=${{ matrix.variant.include_ffmpeg }}
           tags: |
-            ${{ github.repository_owner }}/${{ env.REPO_NAME }}:${{ github.event.inputs.release_name }}
-            ${{ github.repository_owner }}/${{ env.REPO_NAME }}:latest
+            ${{ github.repository_owner }}/${{ env.REPO_NAME }}:${{ github.event.inputs.release_name }}${{ matrix.variant.tags_suffix }}
+            ${{ github.repository_owner }}/${{ env.REPO_NAME }}:${{ matrix.variant.tags_moving }}
+
+  create-release:
+    needs: build-images
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Create and push tag
         run: |
@@ -97,9 +126,15 @@ jobs:
         run: |
           RELEASE_NAME="${{ github.event.inputs.release_name }}"
           REPO="${{ github.repository }}"
+          REPO_NAME=$(basename "$REPO")
+          REPO_OWNER=$(dirname "$REPO")
           GH_RELEASE_URL="https://github.com/$REPO/releases/tag/$RELEASE_NAME"
 
           echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
           echo "✅ Release tag **$RELEASE_NAME** has been successfully created." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Docker Images" >> $GITHUB_STEP_SUMMARY
+          echo "- Base image: \`$REPO_OWNER/$REPO_NAME:$RELEASE_NAME\` and \`$REPO_OWNER/$REPO_NAME:latest\`" >> $GITHUB_STEP_SUMMARY
+          echo "- FFmpeg image: \`$REPO_OWNER/$REPO_NAME:$RELEASE_NAME-ffmpeg\` and \`$REPO_OWNER/$REPO_NAME:ffmpeg\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- [GitHub Release]($GH_RELEASE_URL)" >> $GITHUB_STEP_SUMMARY
