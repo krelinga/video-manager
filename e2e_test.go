@@ -45,8 +45,8 @@ func TestEndToEnd(t *testing.T) {
 		},
 		ExposedPorts: []string{"25009/tcp"},
 		Env: map[string]string{
-			"VIDEO_MANAGER_POSTGRES_HOST":     pg.Host(),
-			"VIDEO_MANAGER_POSTGRES_PORT":     pg.PortString(),
+			"VIDEO_MANAGER_POSTGRES_HOST":     pg.InternalHost(),
+			"VIDEO_MANAGER_POSTGRES_PORT":     pg.InternalPortString(),
 			"VIDEO_MANAGER_POSTGRES_DBNAME":   pg.DBName(),
 			"VIDEO_MANAGER_POSTGRES_USER":     pg.User(),
 			"VIDEO_MANAGER_POSTGRES_PASSWORD": pg.Password(),

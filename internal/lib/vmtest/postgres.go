@@ -16,26 +16,38 @@ import (
 )
 
 type Postgres struct {
-	host     string
-	port     int
-	user     string
-	password string
-	dbName   string
-	db       vmdb.DbRunner
-	once     sync.Once
-	network  *testcontainers.DockerNetwork
+	externalHost string
+	externalPort int
+	user         string
+	password     string
+	dbName       string
+	db           vmdb.DbRunner
+	once         sync.Once
+	network      *testcontainers.DockerNetwork
 }
 
-func (p *Postgres) Host() string {
-	return p.host
+func (p *Postgres) ExternalHost() string {
+	return p.externalHost
 }
 
-func (p *Postgres) Port() int {
-	return p.port
+func (p *Postgres) ExternalPort() int {
+	return p.externalPort
 }
 
-func (p *Postgres) PortString() string {
-	return fmt.Sprintf("%d", p.port)
+func (p *Postgres) InternalHost() string {
+	return "postgres"
+}
+
+func (p *Postgres) InternalPort() int {
+	return 5432
+}
+
+func (p *Postgres) ExternalPortString() string {
+	return fmt.Sprintf("%d", p.externalPort)
+}
+
+func (p *Postgres) InternalPortString() string {
+	return fmt.Sprintf("%d", p.InternalPort())
 }
 
 func (p *Postgres) User() string {
@@ -58,16 +70,16 @@ func (p *Postgres) URL() string {
 	return fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable",
 		url.QueryEscape(p.user),
 		url.QueryEscape(p.password),
-		url.QueryEscape(p.host),
-		p.port,
+		url.QueryEscape(p.externalHost),
+		p.externalPort,
 		url.QueryEscape(p.dbName),
 	)
 }
 
 func (p *Postgres) Config() *config.Postgres {
 	return &config.Postgres{
-		Host:     p.host,
-		Port:     p.port,
+		Host:     p.externalHost,
+		Port:     p.externalPort,
 		User:     p.user,
 		Password: p.password,
 		DBName:   p.dbName,
@@ -122,7 +134,7 @@ func newPostgres(e exam.E) *Postgres {
 			"POSTGRES_PASSWORD": postgresPassword,
 			"POSTGRES_DB":       postgresDB,
 		},
-		Networks: 	[]string{network.Name},
+		Networks:   []string{network.Name},
 		WaitingFor: wait.ForLog("database system is ready to accept connections").WithOccurrence(2),
 	}
 
@@ -146,12 +158,12 @@ func newPostgres(e exam.E) *Postgres {
 	}
 
 	pg := &Postgres{
-		host:     host,
-		port:     port.Int(),
-		user:     postgresUser,
-		password: postgresPassword,
-		dbName:   postgresDB,
-		network:  network,
+		externalHost: host,
+		externalPort: port.Int(),
+		user:         postgresUser,
+		password:     postgresPassword,
+		dbName:       postgresDB,
+		network:      network,
 	}
 
 	pg.Reset(e)
