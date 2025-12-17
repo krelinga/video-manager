@@ -21,7 +21,7 @@ type Postgres struct {
 	password string
 	dbName   string
 	db       vmdb.DbRunner
-	dbOnce   sync.Once
+	once     sync.Once
 }
 
 func (p *Postgres) Host() string {
@@ -70,7 +70,7 @@ func (p *Postgres) Config() *config.Postgres {
 
 func (p *Postgres) DbRunner(e exam.E) vmdb.DbRunner {
 	e.Helper()
-	p.dbOnce.Do(func() {
+	p.once.Do(func() {
 		var err error
 		p.db, err = vmdb.New(p.URL(), vmdb.WithSimpleProtocol())
 		if err != nil {
