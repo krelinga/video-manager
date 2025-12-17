@@ -36,7 +36,9 @@ func main() {
 	}
 
 	// Create database connection pool.
-	db, err := vmdb.New(config.Postgres.URL())
+	postgresUrl := config.Postgres.URL()
+	fmt.Printf("Connecting to Postgres at %s\n", postgresUrl)
+	db, err := vmdb.New(postgresUrl)
 	if err != nil {
 		fmt.Printf("Unable to connect to database: %v\n", err)
 		return
