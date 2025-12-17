@@ -52,6 +52,7 @@ func TestEndToEnd(t *testing.T) {
 			"VIDEO_MANAGER_POSTGRES_PASSWORD": pg.Password(),
 			"VIDEO_MANAGER_ROOT_DIR":          t.TempDir(),
 		},
+		Networks:   []string{pg.Network().Name},
 		WaitingFor: wait.ForHTTP("/health").WithPort("25009/tcp"),
 	}
 

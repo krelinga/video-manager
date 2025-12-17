@@ -11,6 +11,7 @@ import (
 	"github.com/krelinga/video-manager/internal/lib/migrate"
 	"github.com/krelinga/video-manager/internal/lib/vmdb"
 	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/network"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
@@ -22,6 +23,7 @@ type Postgres struct {
 	dbName   string
 	db       vmdb.DbRunner
 	once     sync.Once
+	network  *testcontainers.DockerNetwork
 }
 
 func (p *Postgres) Host() string {
@@ -46,6 +48,10 @@ func (p *Postgres) Password() string {
 
 func (p *Postgres) DBName() string {
 	return p.dbName
+}
+
+func (p *Postgres) Network() *testcontainers.DockerNetwork {
+	return p.network
 }
 
 func (p *Postgres) URL() string {
@@ -102,6 +108,11 @@ func newPostgres(e exam.E) *Postgres {
 	postgresUser := "testuser"
 	postgresDB := "testdb"
 
+	network, err := network.New(ctx)
+	if err != nil {
+		e.Fatalf("failed to create docker network: %v", err)
+	}
+
 	postgresReq := testcontainers.ContainerRequest{
 		Image:        "postgres:17",
 		Hostname:     "postgres",
@@ -111,6 +122,7 @@ func newPostgres(e exam.E) *Postgres {
 			"POSTGRES_PASSWORD": postgresPassword,
 			"POSTGRES_DB":       postgresDB,
 		},
+		Networks: 	[]string{network.Name},
 		WaitingFor: wait.ForLog("database system is ready to accept connections").WithOccurrence(2),
 	}
 
@@ -139,6 +151,7 @@ func newPostgres(e exam.E) *Postgres {
 		user:     postgresUser,
 		password: postgresPassword,
 		dbName:   postgresDB,
+		network:  network,
 	}
 
 	pg.Reset(e)
