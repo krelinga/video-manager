@@ -55,6 +55,33 @@ func (mw *MovieWork) Validate() error {
 	return nil
 }
 
+type MovieWorkPatch struct {
+	Title       ValPatcher[string]
+	ReleaseYear PtrPatcher[int]
+	TMDbID      PtrPatcher[int]
+}
+
+// ValPatch applies the patch to the given MovieWork.
+func (mwp *MovieWorkPatch) ValPatch(mw *MovieWork) {
+	if mwp.Title != nil {
+		mwp.Title.ValPatch(&mw.Title)
+	}
+	if mwp.ReleaseYear != nil {
+		mwp.ReleaseYear.PtrPatch(&mw.ReleaseYear)
+	}
+	if mwp.TMDbID != nil {
+		mwp.TMDbID.PtrPatch(&mw.TMDbID)
+	}
+}
+
+// PtrPatch applies the patch to the given MovieWork pointer, allocating it if nil.
+func (mwp *MovieWorkPatch) PtrPatch(mw **MovieWork) {
+	if *mw == nil {
+		*mw = &MovieWork{}
+	}
+	mwp.ValPatch(*mw)
+}
+
 type MovieWorkPatcher interface {
 	// Chainable setter methods for fields to be updated.
 	SetTitle(title string) MovieWorkPatcher
@@ -81,6 +108,29 @@ func (mew *MovieEditionWork) Validate() error {
 		return fmt.Errorf("%w: MovieEditionWork.Type cannot be empty", ErrEntity)
 	}
 	return nil
+}
+
+type MovieEditionWorkPatch struct {
+	Type          ValPatcher[string]
+	MovieWorkUUID ValPatcher[uuid.UUID]
+}
+
+// ValPatch applies the patch to the given MovieEditionWork.
+func (mewp *MovieEditionWorkPatch) ValPatch(mew *MovieEditionWork) {
+	if mewp.Type != nil {
+		mewp.Type.ValPatch(&mew.Type)
+	}
+	if mewp.MovieWorkUUID != nil {
+		mewp.MovieWorkUUID.ValPatch(&mew.MovieWorkUUID)
+	}
+}
+
+// PtrPatch applies the patch to the given MovieEditionWork pointer, allocating it if nil.
+func (mewp *MovieEditionWorkPatch) PtrPatch(mew **MovieEditionWork) {
+	if *mew == nil {
+		*mew = &MovieEditionWork{}
+	}
+	mewp.ValPatch(*mew)
 }
 
 type MovieEditionWorkPatcher interface {
@@ -116,6 +166,29 @@ func (fs *FileSource) Validate() error {
 	return nil
 }
 
+type FileSourcePatch struct {
+	Path           ValPatcher[string]
+	DiscSourceUUID PtrPatcher[uuid.UUID]
+}
+
+// ValPatch applies the patch to the given FileSource.
+func (fsp *FileSourcePatch) ValPatch(fs *FileSource) {
+	if fsp.Path != nil {
+		fsp.Path.ValPatch(&fs.Path)
+	}
+	if fsp.DiscSourceUUID != nil {
+		fsp.DiscSourceUUID.PtrPatch(&fs.DiscSourceUUID)
+	}
+}
+
+// PtrPatch applies the patch to the given FileSource pointer, allocating it if nil.
+func (fsp *FileSourcePatch) PtrPatch(fs **FileSource) {
+	if *fs == nil {
+		*fs = &FileSource{}
+	}
+	fsp.ValPatch(*fs)
+}
+
 type FileSourcePatcher interface {
 	// Chainable setter methods for fields to be updated.
 	SetPath(path string) FileSourcePatcher
@@ -144,6 +217,33 @@ func (ds *DiscSource) Validate() error {
 		return fmt.Errorf("%w: DiscSource.Path cannot be empty", ErrEntity)
 	}
 	return nil
+}
+
+type DiscSourcePatch struct {
+	OriginalName  ValPatcher[string]
+	Path          ValPatcher[string]
+	AllFilesAdded ValPatcher[bool]
+}
+
+// ValPatch applies the patch to the given DiscSource.
+func (dsp *DiscSourcePatch) ValPatch(ds *DiscSource) {
+	if dsp.OriginalName != nil {
+		dsp.OriginalName.ValPatch(&ds.OriginalName)
+	}
+	if dsp.Path != nil {
+		dsp.Path.ValPatch(&ds.Path)
+	}
+	if dsp.AllFilesAdded != nil {
+		dsp.AllFilesAdded.ValPatch(&ds.AllFilesAdded)
+	}
+}
+
+// PtrPatch applies the patch to the given DiscSource pointer, allocating it if nil.
+func (dsp *DiscSourcePatch) PtrPatch(ds **DiscSource) {
+	if *ds == nil {
+		*ds = &DiscSource{}
+	}
+	dsp.ValPatch(*ds)
 }
 
 type DiscSourcePatcher interface {
@@ -177,6 +277,29 @@ func (dp *DirectPlan) Validate() error {
 	return nil
 }
 
+type DirectPlanPatch struct {
+	FileSourceUUID ValPatcher[uuid.UUID]
+	WorkUUID       ValPatcher[uuid.UUID]
+}
+
+// ValPatch applies the patch to the given DirectPlan.
+func (dpp *DirectPlanPatch) ValPatch(dp *DirectPlan) {
+	if dpp.FileSourceUUID != nil {
+		dpp.FileSourceUUID.ValPatch(&dp.FileSourceUUID)
+	}
+	if dpp.WorkUUID != nil {
+		dpp.WorkUUID.ValPatch(&dp.WorkUUID)
+	}
+}
+
+// PtrPatch applies the patch to the given DirectPlan pointer, allocating it if nil.
+func (dpp *DirectPlanPatch) PtrPatch(dp **DirectPlan) {
+	if *dp == nil {
+		*dp = &DirectPlan{}
+	}
+	dpp.ValPatch(*dp)
+}
+
 type DirectPlanPatcher interface {
 	// Chainable setter methods for fields to be updated.
 	SetFileSourceUUID(uuid uuid.UUID) DirectPlanPatcher
@@ -201,6 +324,37 @@ type ChapterRangePlan struct {
 
 func (crp *ChapterRangePlan) Validate() error {
 	return nil
+}
+
+type ChapterRangePlanPatch struct {
+	FileSourceUUID ValPatcher[uuid.UUID]
+	WorkUUID       ValPatcher[uuid.UUID]
+	StartChapter   PtrPatcher[int]
+	EndChapter     PtrPatcher[int]
+}
+
+// ValPatch applies the patch to the given ChapterRangePlan.
+func (crpp *ChapterRangePlanPatch) ValPatch(crp *ChapterRangePlan) {
+	if crpp.FileSourceUUID != nil {
+		crpp.FileSourceUUID.ValPatch(&crp.FileSourceUUID)
+	}
+	if crpp.WorkUUID != nil {
+		crpp.WorkUUID.ValPatch(&crp.WorkUUID)
+	}
+	if crpp.StartChapter != nil {
+		crpp.StartChapter.PtrPatch(&crp.StartChapter)
+	}
+	if crpp.EndChapter != nil {
+		crpp.EndChapter.PtrPatch(&crp.EndChapter)
+	}
+}
+
+// PtrPatch applies the patch to the given ChapterRangePlan pointer, allocating it if nil.
+func (crpp *ChapterRangePlanPatch) PtrPatch(crp **ChapterRangePlan) {
+	if *crp == nil {
+		*crp = &ChapterRangePlan{}
+	}
+	crpp.ValPatch(*crp)
 }
 
 type ChapterRangePlanPatcher interface {
