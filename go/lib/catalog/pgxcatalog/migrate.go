@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 )
 
@@ -32,7 +33,6 @@ func (m *Migrator) MigrateDown() error {
 		return nil
 	})
 }
-
 
 func (m *Migrator) impl(body func(migrator *migrate.Migrate) error) error {
 	d, err := iofs.New(migrationsFS, "migrations")
