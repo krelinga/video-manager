@@ -39,7 +39,7 @@ type MovieWork struct {
 	TMDbID      *int
 }
 
-func (mw *MovieWork) IsValid() error {
+func (mw *MovieWork) Validate() error {
 	if mw.Title == "" {
 		return fmt.Errorf("%w: MovieWork.Title cannot be empty", ErrEntity)
 	}
@@ -67,7 +67,7 @@ type MovieEditionWork struct {
 	MovieWorkUUID uuid.UUID
 }
 
-func (mew *MovieEditionWork) IsValid() error {
+func (mew *MovieEditionWork) Validate() error {
 	if mew.Type == "" {
 		return fmt.Errorf("%w: MovieEditionWork.Type cannot be empty", ErrEntity)
 	}
@@ -100,7 +100,7 @@ type FileSource struct {
 	DiscSourceUUID *uuid.UUID
 }
 
-func (fs *FileSource) IsValid() error {
+func (fs *FileSource) Validate() error {
 	if fs.Path == "" {
 		return fmt.Errorf("%w: FileSource.Path cannot be empty", ErrEntity)
 	}
@@ -127,7 +127,7 @@ type DiscSource struct {
 	AllFilesAdded bool
 }
 
-func (ds *DiscSource) IsValid() error {
+func (ds *DiscSource) Validate() error {
 	if ds.OriginalName == "" {
 		return fmt.Errorf("%w: DiscSource.OriginalName cannot be empty", ErrEntity)
 	}
@@ -229,7 +229,7 @@ type Client interface {
 
 	// PutMovieWork creates or replaces a Work with the given UUID.
 	// Returns:
-	// - ErrEntity if in.IsValid() returns an error.
+	// - ErrEntity if in.Validate() returns an error.
 	// - ErrType if a work with the given UUID already exists with a different type.
 	PutMovieWork(ctx context.Context, workUUID uuid.UUID, in *MovieWork) error
 
@@ -239,7 +239,7 @@ type Client interface {
 
 	// PutMovieEditionWork creates or replaces a Movie Edition Work with the given UUID.
 	// Returns:
-	// - ErrEntity if in.IsValid() returns an error.
+	// - ErrEntity if in.Validate() returns an error.
 	// - ErrType if a work with the given UUID already exists with a different type.
 	PutMovieEditionWork(ctx context.Context, workUUID uuid.UUID, in *MovieEditionWork) error
 
@@ -258,7 +258,7 @@ type Client interface {
 
 	// PutFileSource creates or replaces a File Source with the given UUID.
 	// Returns:
-	// - ErrEntity if in.IsValid() returns an error.
+	// - ErrEntity if in.Validate() returns an error.
 	// - ErrType if a source with the given UUID already exists with a different type.
 	PutFileSource(ctx context.Context, sourceUUID uuid.UUID, in *FileSource) error
 
@@ -268,7 +268,7 @@ type Client interface {
 
 	// PutDiscSource creates or replaces a Disc Source with the given UUID.
 	// Returns:
-	// - ErrEntity if in.IsValid() returns an error.
+	// - ErrEntity if in.Validate() returns an error.
 	// - ErrType if a source with the given UUID already exists with a different type.
 	PutDiscSource(ctx context.Context, sourceUUID uuid.UUID, in *DiscSource) error
 
@@ -293,7 +293,7 @@ type Client interface {
 
 	// PutDirectPlan creates or replaces a Direct Plan with the given UUID.
 	// Returns:
-	// - ErrEntity if in.IsValid() returns an error.
+	// - ErrEntity if in.Validate() returns an error.
 	// - ErrType if a plan with the given UUID already exists with a different type.
 	PutDirectPlan(ctx context.Context, planUUID uuid.UUID, in *DirectPlan) error
 
@@ -303,7 +303,7 @@ type Client interface {
 
 	// PutChapterRangePlan creates or replaces a Chapter Range Plan with the given UUID.
 	// Returns:
-	// - ErrEntity if in.IsValid() returns an error.
+	// - ErrEntity if in.Validate() returns an error.
 	// - ErrType if a plan with the given UUID already exists with a different type.
 	PutChapterRangePlan(ctx context.Context, planUUID uuid.UUID, in *ChapterRangePlan) error
 
