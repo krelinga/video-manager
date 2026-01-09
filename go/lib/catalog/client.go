@@ -13,16 +13,16 @@ var (
 	ErrNotFound = errors.New("not found")
 
 	// ErrEntity indicates that the provided entity is invalid.
-	ErrEntity   = errors.New("invalid entity")
+	ErrEntity = errors.New("invalid entity")
 
-	// ErrType indicates a type mismatch for the entity.
-	ErrType     = errors.New("entity already exists with different type")
+	// ErrKind indicates a type mismatch for the entity.
+	ErrKind = errors.New("entity already exists with different kind")
 
 	// ErrParams indicates that the provided parameters are invalid.
-	ErrParams   = errors.New("invalid parameters")
+	ErrParams = errors.New("invalid parameters")
 
 	// ErrInternal indicates an internal server error.
-	ErrInternal = errors.New("internal server error")
+	ErrInternal = errors.New("internal error")
 )
 
 type Work struct {
@@ -217,6 +217,13 @@ type ListPlansParams struct {
 	PageSize int
 }
 
+type PutResult bool
+
+const (
+	PutResultCreated  PutResult = true
+	PutResultReplaced PutResult = false
+)
+
 type Client interface {
 	// WORK METHODS
 	// ============
@@ -225,13 +232,13 @@ type Client interface {
 	// Returns:
 	// - ErrNotFound if no such Work exists.
 	// - ErrInternal for other errors.
-	GetWork(ctx context.Context, uuid uuid.UUID) (*Work, error)
+	GetWork(ctx context.Context, workUUID uuid.UUID) (*Work, error)
 
 	// PutMovieWork creates or replaces a Work with the given UUID.
 	// Returns:
 	// - ErrEntity if in.Validate() returns an error.
 	// - ErrType if a work with the given UUID already exists with a different type.
-	PutMovieWork(ctx context.Context, workUUID uuid.UUID, in *MovieWork) error
+	PutMovieWork(ctx context.Context, workUUID uuid.UUID, in *MovieWork) (*PutResult, error)
 
 	// PatchMovieWork starts a patching operation for the given Movie Work.
 	// Callers must call Save() or SaveGet() on the returned patcher to persist changes.
@@ -241,7 +248,7 @@ type Client interface {
 	// Returns:
 	// - ErrEntity if in.Validate() returns an error.
 	// - ErrType if a work with the given UUID already exists with a different type.
-	PutMovieEditionWork(ctx context.Context, workUUID uuid.UUID, in *MovieEditionWork) error
+	PutMovieEditionWork(ctx context.Context, workUUID uuid.UUID, in *MovieEditionWork) (*PutResult, error)
 
 	// PatchMovieEditionWork starts a patching operation for the given Movie Edition Work.
 	// Callers must call Save() or SaveGet() on the returned patcher to persist changes.
@@ -260,7 +267,7 @@ type Client interface {
 	// Returns:
 	// - ErrEntity if in.Validate() returns an error.
 	// - ErrType if a source with the given UUID already exists with a different type.
-	PutFileSource(ctx context.Context, sourceUUID uuid.UUID, in *FileSource) error
+	PutFileSource(ctx context.Context, sourceUUID uuid.UUID, in *FileSource) (*PutResult, error)
 
 	// PatchFileSource starts a patching operation for the given File Source.
 	// Callers must call Save() or SaveGet() on the returned patcher to persist changes.
@@ -270,7 +277,7 @@ type Client interface {
 	// Returns:
 	// - ErrEntity if in.Validate() returns an error.
 	// - ErrType if a source with the given UUID already exists with a different type.
-	PutDiscSource(ctx context.Context, sourceUUID uuid.UUID, in *DiscSource) error
+	PutDiscSource(ctx context.Context, sourceUUID uuid.UUID, in *DiscSource) (*PutResult, error)
 
 	// PatchDiscSource starts a patching operation for the given Disc Source.
 	// Callers must call Save() or SaveGet() on the returned patcher to persist changes.
@@ -295,7 +302,7 @@ type Client interface {
 	// Returns:
 	// - ErrEntity if in.Validate() returns an error.
 	// - ErrType if a plan with the given UUID already exists with a different type.
-	PutDirectPlan(ctx context.Context, planUUID uuid.UUID, in *DirectPlan) error
+	PutDirectPlan(ctx context.Context, planUUID uuid.UUID, in *DirectPlan) (*PutResult, error)
 
 	// PatchDirectPlan starts a patching operation for the given Direct Plan.
 	// Callers must call Save() or SaveGet() on the returned patcher to persist changes.
@@ -305,7 +312,7 @@ type Client interface {
 	// Returns:
 	// - ErrEntity if in.Validate() returns an error.
 	// - ErrType if a plan with the given UUID already exists with a different type.
-	PutChapterRangePlan(ctx context.Context, planUUID uuid.UUID, in *ChapterRangePlan) error
+	PutChapterRangePlan(ctx context.Context, planUUID uuid.UUID, in *ChapterRangePlan) (*PutResult, error)
 
 	// PatchChapterRangePlan starts a patching operation for the given Chapter Range Plan.
 	// Callers must call Save() or SaveGet() on the returned patcher to persist changes.
