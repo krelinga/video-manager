@@ -15,9 +15,6 @@ func (c *Client) PutChapterRangePlan(ctx context.Context, planUUID uuid.UUID, in
 	if in == nil {
 		return nil, fmt.Errorf("%w: chapterRangePlan cannot be nil", catalog.ErrParams)
 	}
-	if err := in.Validate(); err != nil {
-		return nil, err
-	}
 
 	body := &chapterRangePlanJSON{}
 	body.FromPublic(in)

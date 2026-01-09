@@ -15,9 +15,6 @@ func (c *Client) PutFileSource(ctx context.Context, sourceUUID uuid.UUID, in *ca
 	if in == nil {
 		return nil, fmt.Errorf("%w: fileSource cannot be nil", catalog.ErrParams)
 	}
-	if err := in.Validate(); err != nil {
-		return nil, err
-	}
 
 	body := &fileSourceJSON{}
 	body.FromPublic(in)

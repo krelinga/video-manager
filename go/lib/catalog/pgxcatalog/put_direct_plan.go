@@ -15,9 +15,6 @@ func (c *Client) PutDirectPlan(ctx context.Context, planUUID uuid.UUID, in *cata
 	if in == nil {
 		return nil, fmt.Errorf("%w: directPlan cannot be nil", catalog.ErrParams)
 	}
-	if err := in.Validate(); err != nil {
-		return nil, err
-	}
 
 	body := &directPlanJSON{}
 	body.FromPublic(in)

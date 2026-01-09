@@ -15,9 +15,6 @@ func (c *Client) PutDiscSource(ctx context.Context, sourceUUID uuid.UUID, in *ca
 	if in == nil {
 		return nil, fmt.Errorf("%w: discSource cannot be nil", catalog.ErrParams)
 	}
-	if err := in.Validate(); err != nil {
-		return nil, err
-	}
 
 	body := &discSourceJSON{}
 	body.FromPublic(in)
