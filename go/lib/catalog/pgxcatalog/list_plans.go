@@ -114,7 +114,7 @@ func (c *Client) ListPlans(ctx context.Context, params *catalog.ListPlansParams)
 		return nil
 	})
 	if err != nil {
-		if !catalog.IsCatalogError(err) {
+		if !catalog.IsKnownError(err) {
 			err = fmt.Errorf("%w: failed to process plan rows: %w", catalog.ErrInternal, err)
 		}
 		return nil, nil, err

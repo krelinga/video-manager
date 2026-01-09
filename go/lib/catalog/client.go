@@ -25,8 +25,8 @@ var (
 	ErrInternal = errors.New("internal error")
 )
 
-// IsCatalogError returns true if the given error is one of the known catalog errors.
-func IsCatalogError(err error) bool {
+// IsKnownError returns true if the given error is one of the known catalog errors.
+func IsKnownError(err error) bool {
 	return errors.Is(err, ErrNotFound) ||
 		errors.Is(err, ErrEntity) ||
 		errors.Is(err, ErrKind) ||
