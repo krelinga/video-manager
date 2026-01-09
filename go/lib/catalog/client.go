@@ -25,6 +25,15 @@ var (
 	ErrInternal = errors.New("internal error")
 )
 
+// IsCatalogError returns true if the given error is one of the known catalog errors.
+func IsCatalogError(err error) bool {
+	return errors.Is(err, ErrNotFound) ||
+		errors.Is(err, ErrEntity) ||
+		errors.Is(err, ErrKind) ||
+		errors.Is(err, ErrParams) ||
+		errors.Is(err, ErrInternal)
+}
+
 type Work struct {
 	UUID uuid.UUID
 

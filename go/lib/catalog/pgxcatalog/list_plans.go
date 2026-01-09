@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/krelinga/video-manager/go/lib/catalog"
 )
 
@@ -101,23 +102,23 @@ func (c *Client) ListPlans(ctx context.Context, params *catalog.ListPlansParams)
 	defer rows.Close()
 
 	var plans []*catalog.Plan
-	for rows.Next() {
-		var planUUID uuid.UUID
-		var kind planKind
-		var rawBody []byte
-
-		if err := rows.Scan(&planUUID, &kind, &rawBody); err != nil {
-			return nil, nil, fmt.Errorf("%w: failed to scan plan row: %w", catalog.ErrInternal, err)
-		}
-
+	var planUUID uuid.UUID
+	var kind planKind
+	var rawBody []byte
+	_, err = pgx.ForEachRow(rows, []any{&planUUID, &kind, &rawBody}, func() error {
 		plan, err := toPublicPlan(planUUID, kind, rawBody)
 		if err != nil {
-			return nil, nil, err
+			return err
 		}
-
 		plans = append(plans, plan)
+		return nil
+	})
+	if err != nil {
+		if !catalog.IsCatalogError(err) {
+			err = fmt.Errorf("%w: failed to process plan rows: %w", catalog.ErrInternal, err)
+		}
+		return nil, nil, err
 	}
-	rows.Close()
 
 	if err := rows.Err(); err != nil {
 		return nil, nil, fmt.Errorf("%w: error iterating plan rows: %w", catalog.ErrInternal, err)
