@@ -82,22 +82,6 @@ func (mwp *MovieWorkPatch) PtrPatch(mw **MovieWork) {
 	mwp.ValPatch(*mw)
 }
 
-type MovieWorkPatcher interface {
-	// Chainable setter methods for fields to be updated.
-	SetTitle(title string) MovieWorkPatcher
-	SetReleaseYear(year int) MovieWorkPatcher
-	ClearReleaseYear() MovieWorkPatcher
-	SetTMDbID(tmdbID int) MovieWorkPatcher
-	ClearTMDbID() MovieWorkPatcher
-
-	// Save and SaveGet persist the changes (optionally returning the fully-updated Work).
-	// Returns:
-	// - ErrEntity if the newly-updated entity would be invalid.
-	// - ErrInternal for other errors.
-	Save() error
-	SaveGet() (*Work, error)
-}
-
 type MovieEditionWork struct {
 	Type          string
 	MovieWorkUUID uuid.UUID
@@ -131,19 +115,6 @@ func (mewp *MovieEditionWorkPatch) PtrPatch(mew **MovieEditionWork) {
 		*mew = &MovieEditionWork{}
 	}
 	mewp.ValPatch(*mew)
-}
-
-type MovieEditionWorkPatcher interface {
-	// Chainable setter methods for fields to be updated.
-	SetType(editionType string) MovieEditionWorkPatcher
-	SetMovieWorkUUID(uuid uuid.UUID) MovieEditionWorkPatcher
-
-	// Save and SaveGet persist the changes (optionally returning the fully-updated Work).
-	// Returns:
-	// - ErrEntity if the newly-updated entity would be invalid.
-	// - ErrInternal for other errors.
-	Save() error
-	SaveGet() (*Work, error)
 }
 
 type Source struct {
@@ -189,20 +160,6 @@ func (fsp *FileSourcePatch) PtrPatch(fs **FileSource) {
 	fsp.ValPatch(*fs)
 }
 
-type FileSourcePatcher interface {
-	// Chainable setter methods for fields to be updated.
-	SetPath(path string) FileSourcePatcher
-	SetDiscSourceUUID(uuid uuid.UUID) FileSourcePatcher
-	ClearDiscSourceUUID() FileSourcePatcher
-
-	// Save and SaveGet persist the changes (optionally returning the fully-updated Source).
-	// Returns:
-	// - ErrEntity if the newly-updated entity would be invalid.
-	// - ErrInternal for other errors.
-	Save() error
-	SaveGet() (*Source, error)
-}
-
 type DiscSource struct {
 	OriginalName  string
 	Path          string
@@ -246,20 +203,6 @@ func (dsp *DiscSourcePatch) PtrPatch(ds **DiscSource) {
 	dsp.ValPatch(*ds)
 }
 
-type DiscSourcePatcher interface {
-	// Chainable setter methods for fields to be updated.
-	SetOriginalName(name string) DiscSourcePatcher
-	SetPath(path string) DiscSourcePatcher
-	SetAllFilesAdded(allFilesAdded bool) DiscSourcePatcher
-
-	// Save and SaveGet persist the changes (optionally returning the fully-updated Source).
-	// Returns:
-	// - ErrEntity if the newly-updated entity would be invalid.
-	// - ErrInternal for other errors.
-	Save() error
-	SaveGet() (*Source, error)
-}
-
 type Plan struct {
 	UUID uuid.UUID
 
@@ -298,19 +241,6 @@ func (dpp *DirectPlanPatch) PtrPatch(dp **DirectPlan) {
 		*dp = &DirectPlan{}
 	}
 	dpp.ValPatch(*dp)
-}
-
-type DirectPlanPatcher interface {
-	// Chainable setter methods for fields to be updated.
-	SetFileSourceUUID(uuid uuid.UUID) DirectPlanPatcher
-	SetWorkUUID(uuid uuid.UUID) DirectPlanPatcher
-
-	// Save and SaveGet persist the changes (optionally returning the fully-updated Plan).
-	// Returns:
-	// - ErrEntity if the newly-updated entity would be invalid.
-	// - ErrInternal for other errors.
-	Save() error
-	SaveGet() (*Plan, error)
 }
 
 type ChapterRangePlan struct {
@@ -357,23 +287,6 @@ func (crpp *ChapterRangePlanPatch) PtrPatch(crp **ChapterRangePlan) {
 	crpp.ValPatch(*crp)
 }
 
-type ChapterRangePlanPatcher interface {
-	// Chainable setter methods for fields to be updated.
-	SetFileSourceUUID(uuid uuid.UUID) ChapterRangePlanPatcher
-	SetWorkUUID(uuid uuid.UUID) ChapterRangePlanPatcher
-	SetStartChapter(chapter int) ChapterRangePlanPatcher
-	ClearStartChapter() ChapterRangePlanPatcher
-	SetEndChapter(chapter int) ChapterRangePlanPatcher
-	ClearEndChapter() ChapterRangePlanPatcher
-
-	// Save and SaveGet persist the changes (optionally returning the fully-updated Plan).
-	// Returns:
-	// - ErrEntity if the newly-updated entity would be invalid.
-	// - ErrInternal for other errors.
-	Save() error
-	SaveGet() (*Plan, error)
-}
-
 type PageToken []byte
 
 type ListPlansParams struct {
@@ -415,9 +328,13 @@ type Client interface {
 	// - ErrType if a work with the given UUID already exists with a different type.
 	PutMovieWork(ctx context.Context, workUUID uuid.UUID, in *MovieWork) (*PutResult, error)
 
-	// PatchMovieWork starts a patching operation for the given Movie Work.
-	// Callers must call Save() or SaveGet() on the returned patcher to persist changes.
-	PatchMovieWork(ctx context.Context, workUUID uuid.UUID) MovieWorkPatcher
+	// PatchMovieWork applies a patch to the given Movie Work.
+	// Returns:
+	// - ErrNotFound if no such Work exists.
+	// - ErrKind if the Work is not a Movie Work.
+	// - ErrEntity if the patched entity would be invalid.
+	// - ErrInternal for other errors.
+	PatchMovieWork(ctx context.Context, workUUID uuid.UUID, patch *MovieWorkPatch) (*Work, error)
 
 	// PutMovieEditionWork creates or replaces a Movie Edition Work with the given UUID.
 	// Returns:
@@ -425,9 +342,13 @@ type Client interface {
 	// - ErrType if a work with the given UUID already exists with a different type.
 	PutMovieEditionWork(ctx context.Context, workUUID uuid.UUID, in *MovieEditionWork) (*PutResult, error)
 
-	// PatchMovieEditionWork starts a patching operation for the given Movie Edition Work.
-	// Callers must call Save() or SaveGet() on the returned patcher to persist changes.
-	PatchMovieEditionWork(ctx context.Context, workUUID uuid.UUID) MovieEditionWorkPatcher
+	// PatchMovieEditionWork applies a patch to the given Movie Edition Work.
+	// Returns:
+	// - ErrNotFound if no such Work exists.
+	// - ErrKind if the Work is not a Movie Edition Work.
+	// - ErrEntity if the patched entity would be invalid.
+	// - ErrInternal for other errors.
+	PatchMovieEditionWork(ctx context.Context, workUUID uuid.UUID, patch *MovieEditionWorkPatch) (*Work, error)
 
 	// SOURCE METHODS
 	// ==============
@@ -444,9 +365,13 @@ type Client interface {
 	// - ErrType if a source with the given UUID already exists with a different type.
 	PutFileSource(ctx context.Context, sourceUUID uuid.UUID, in *FileSource) (*PutResult, error)
 
-	// PatchFileSource starts a patching operation for the given File Source.
-	// Callers must call Save() or SaveGet() on the returned patcher to persist changes.
-	PatchFileSource(ctx context.Context, sourceUUID uuid.UUID) FileSourcePatcher
+	// PatchFileSource applies a patch to the given File Source.
+	// Returns:
+	// - ErrNotFound if no such Source exists.
+	// - ErrKind if the Source is not a File Source.
+	// - ErrEntity if the patched entity would be invalid.
+	// - ErrInternal for other errors.
+	PatchFileSource(ctx context.Context, sourceUUID uuid.UUID, patch *FileSourcePatch) (*Source, error)
 
 	// PutDiscSource creates or replaces a Disc Source with the given UUID.
 	// Returns:
@@ -454,9 +379,13 @@ type Client interface {
 	// - ErrType if a source with the given UUID already exists with a different type.
 	PutDiscSource(ctx context.Context, sourceUUID uuid.UUID, in *DiscSource) (*PutResult, error)
 
-	// PatchDiscSource starts a patching operation for the given Disc Source.
-	// Callers must call Save() or SaveGet() on the returned patcher to persist changes.
-	PatchDiscSource(ctx context.Context, sourceUUID uuid.UUID) DiscSourcePatcher
+	// PatchDiscSource applies a patch to the given Disc Source.
+	// Returns:
+	// - ErrNotFound if no such Source exists.
+	// - ErrKind if the Source is not a Disc Source.
+	// - ErrEntity if the patched entity would be invalid.
+	// - ErrInternal for other errors.
+	PatchDiscSource(ctx context.Context, sourceUUID uuid.UUID, patch *DiscSourcePatch) (*Source, error)
 
 	// PLAN METHODS
 	// ============
@@ -479,9 +408,13 @@ type Client interface {
 	// - ErrType if a plan with the given UUID already exists with a different type.
 	PutDirectPlan(ctx context.Context, planUUID uuid.UUID, in *DirectPlan) (*PutResult, error)
 
-	// PatchDirectPlan starts a patching operation for the given Direct Plan.
-	// Callers must call Save() or SaveGet() on the returned patcher to persist changes.
-	PatchDirectPlan(ctx context.Context, planUUID uuid.UUID) DirectPlanPatcher
+	// PatchDirectPlan applies a patch to the given Direct Plan.
+	// Returns:
+	// - ErrNotFound if no such Plan exists.
+	// - ErrKind if the Plan is not a Direct Plan.
+	// - ErrEntity if the patched entity would be invalid.
+	// - ErrInternal for other errors.
+	PatchDirectPlan(ctx context.Context, planUUID uuid.UUID, patch *DirectPlanPatch) (*Plan, error)
 
 	// PutChapterRangePlan creates or replaces a Chapter Range Plan with the given UUID.
 	// Returns:
@@ -489,7 +422,11 @@ type Client interface {
 	// - ErrType if a plan with the given UUID already exists with a different type.
 	PutChapterRangePlan(ctx context.Context, planUUID uuid.UUID, in *ChapterRangePlan) (*PutResult, error)
 
-	// PatchChapterRangePlan starts a patching operation for the given Chapter Range Plan.
-	// Callers must call Save() or SaveGet() on the returned patcher to persist changes.
-	PatchChapterRangePlan(ctx context.Context, planUUID uuid.UUID) ChapterRangePlanPatcher
+	// PatchChapterRangePlan applies a patch to the given Chapter Range Plan.
+	// Returns:
+	// - ErrNotFound if no such Plan exists.
+	// - ErrKind if the Plan is not a Chapter Range Plan.
+	// - ErrEntity if the patched entity would be invalid.
+	// - ErrInternal for other errors.
+	PatchChapterRangePlan(ctx context.Context, planUUID uuid.UUID, patch *ChapterRangePlanPatch) (*Plan, error)
 }

@@ -7,100 +7,58 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/krelinga/video-manager/go/lib/catalog"
 )
 
-func (c *Client) PatchFileSource(ctx context.Context, sourceUUID uuid.UUID) catalog.FileSourcePatcher {
-	return &fileSourcePatcher{
-		Ctx:        ctx,
-		Pool:       c.Pool,
-		SourceUUID: sourceUUID,
-	}
-}
-
-type fileSourcePatcher struct {
-	Ctx        context.Context
-	Pool       *pgxpool.Pool
-	SourceUUID uuid.UUID
-
-	path           patchReqField[string]
-	discSourceUUID patchOptField[uuid.UUID]
-}
-
-func (fsp *fileSourcePatcher) SetPath(path string) catalog.FileSourcePatcher {
-	fsp.path.Set(path)
-	return fsp
-}
-
-func (fsp *fileSourcePatcher) SetDiscSourceUUID(uuid uuid.UUID) catalog.FileSourcePatcher {
-	fsp.discSourceUUID.Set(uuid)
-	return fsp
-}
-
-func (fsp *fileSourcePatcher) ClearDiscSourceUUID() catalog.FileSourcePatcher {
-	fsp.discSourceUUID.Clear()
-	return fsp
-}
-
-func (fsp *fileSourcePatcher) SaveGet() (*catalog.Source, error) {
-	txn, err := fsp.Pool.Begin(fsp.Ctx)
+func (c *Client) PatchFileSource(ctx context.Context, sourceUUID uuid.UUID, patch *catalog.FileSourcePatch) (*catalog.Source, error) {
+	txn, err := c.Pool.Begin(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("%w: failed to begin transaction for patching source %s: %w", catalog.ErrInternal, fsp.SourceUUID, err)
+		return nil, fmt.Errorf("%w: failed to begin transaction for patching source %s: %w", catalog.ErrInternal, sourceUUID, err)
 	}
-	defer txn.Rollback(fsp.Ctx)
+	defer txn.Rollback(ctx)
 
-	row := txn.QueryRow(fsp.Ctx, `
+	row := txn.QueryRow(ctx, `
 		SELECT
 			kind,
 			body
 		FROM cat.sources
 		WHERE uuid = $1
-	`, fsp.SourceUUID)
+	`, sourceUUID)
 	var kind sourceKind
 	var rawBody []byte
 	if err := row.Scan(&kind, &rawBody); errors.Is(err, pgx.ErrNoRows) {
 		return nil, catalog.ErrNotFound
 	} else if err != nil {
-		return nil, fmt.Errorf("%w: failed to query source %s for patching: %w", catalog.ErrInternal, fsp.SourceUUID, err)
+		return nil, fmt.Errorf("%w: failed to query source %s for patching: %w", catalog.ErrInternal, sourceUUID, err)
 	} else if kind != sourceKindFile {
-		return nil, fmt.Errorf("%w: source %s is not a file source", catalog.ErrKind, fsp.SourceUUID)
+		return nil, fmt.Errorf("%w: source %s is not a file source", catalog.ErrKind, sourceUUID)
 	}
 
 	body := &fileSourceJSON{}
 	if err := body.UnmarshalJSON(rawBody); err != nil {
 		return nil, err
 	}
-
-	if fsp.path.Changed() {
-		body.Path = fsp.path.Get()
-	}
-	if fsp.discSourceUUID.Changed() {
-		body.DiscSourceUUID = fsp.discSourceUUID.Get()
-	}
+	publicBody := body.ToPublic()
+	patch.PtrPatch(&publicBody)
+	body.FromPublic(publicBody)
 
 	if err := update(
-		fsp.Ctx,
+		ctx,
 		txn,
 		"cat.sources",
 		kind,
-		fsp.SourceUUID,
+		sourceUUID,
 		body,
 	); err != nil {
 		return nil, err
 	}
 
-	if err := txn.Commit(fsp.Ctx); err != nil {
-		return nil, fmt.Errorf("%w: failed to commit transaction for patching source %s: %w", catalog.ErrInternal, fsp.SourceUUID, err)
+	if err := txn.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("%w: failed to commit transaction for patching source %s: %w", catalog.ErrInternal, sourceUUID, err)
 	}
 
 	return &catalog.Source{
-		UUID:       fsp.SourceUUID,
+		UUID:       sourceUUID,
 		FileSource: body.ToPublic(),
 	}, nil
-}
-
-func (fsp *fileSourcePatcher) Save() error {
-	_, err := fsp.SaveGet()
-	return err
 }

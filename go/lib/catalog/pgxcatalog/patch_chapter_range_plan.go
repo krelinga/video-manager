@@ -7,145 +7,80 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/krelinga/video-manager/go/lib/catalog"
 )
 
-func (c *Client) PatchChapterRangePlan(ctx context.Context, planUUID uuid.UUID) catalog.ChapterRangePlanPatcher {
-	return &chapterRangePlanPatcher{
-		Ctx:      ctx,
-		Pool:     c.Pool,
-		PlanUUID: planUUID,
-	}
-}
-
-type chapterRangePlanPatcher struct {
-	Ctx      context.Context
-	Pool     *pgxpool.Pool
-	PlanUUID uuid.UUID
-
-	fileSourceUUID patchReqField[uuid.UUID]
-	workUUID       patchReqField[uuid.UUID]
-	startChapter   patchOptField[int]
-	endChapter     patchOptField[int]
-}
-
-func (crpp *chapterRangePlanPatcher) SetFileSourceUUID(uuid uuid.UUID) catalog.ChapterRangePlanPatcher {
-	crpp.fileSourceUUID.Set(uuid)
-	return crpp
-}
-
-func (crpp *chapterRangePlanPatcher) SetWorkUUID(uuid uuid.UUID) catalog.ChapterRangePlanPatcher {
-	crpp.workUUID.Set(uuid)
-	return crpp
-}
-
-func (crpp *chapterRangePlanPatcher) SetStartChapter(chapter int) catalog.ChapterRangePlanPatcher {
-	crpp.startChapter.Set(chapter)
-	return crpp
-}
-
-func (crpp *chapterRangePlanPatcher) ClearStartChapter() catalog.ChapterRangePlanPatcher {
-	crpp.startChapter.Clear()
-	return crpp
-}
-
-func (crpp *chapterRangePlanPatcher) SetEndChapter(chapter int) catalog.ChapterRangePlanPatcher {
-	crpp.endChapter.Set(chapter)
-	return crpp
-}
-
-func (crpp *chapterRangePlanPatcher) ClearEndChapter() catalog.ChapterRangePlanPatcher {
-	crpp.endChapter.Clear()
-	return crpp
-}
-
-func (crpp *chapterRangePlanPatcher) SaveGet() (*catalog.Plan, error) {
-	txn, err := crpp.Pool.Begin(crpp.Ctx)
+func (c *Client) PatchChapterRangePlan(ctx context.Context, planUUID uuid.UUID, patch *catalog.ChapterRangePlanPatch) (*catalog.Plan, error) {
+	txn, err := c.Pool.Begin(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("%w: failed to begin transaction for patching plan %s: %w", catalog.ErrInternal, crpp.PlanUUID, err)
+		return nil, fmt.Errorf("%w: failed to begin transaction for patching plan %s: %w", catalog.ErrInternal, planUUID, err)
 	}
-	defer txn.Rollback(crpp.Ctx)
+	defer txn.Rollback(ctx)
 
-	row := txn.QueryRow(crpp.Ctx, `
+	row := txn.QueryRow(ctx, `
 		SELECT
 			kind,
 			body
 		FROM cat.plans
 		WHERE uuid = $1
-	`, crpp.PlanUUID)
+	`, planUUID)
 	var kind planKind
 	var rawBody []byte
 	if err := row.Scan(&kind, &rawBody); errors.Is(err, pgx.ErrNoRows) {
 		return nil, catalog.ErrNotFound
 	} else if err != nil {
-		return nil, fmt.Errorf("%w: failed to query plan %s for patching: %w", catalog.ErrInternal, crpp.PlanUUID, err)
+		return nil, fmt.Errorf("%w: failed to query plan %s for patching: %w", catalog.ErrInternal, planUUID, err)
 	} else if kind != planKindChapterRange {
-		return nil, fmt.Errorf("%w: plan %s is not a chapter range plan", catalog.ErrKind, crpp.PlanUUID)
+		return nil, fmt.Errorf("%w: plan %s is not a chapter range plan", catalog.ErrKind, planUUID)
 	}
 
 	body := &chapterRangePlanJSON{}
 	if err := body.UnmarshalJSON(rawBody); err != nil {
 		return nil, err
 	}
-
-	if crpp.fileSourceUUID.Changed() {
-		body.FileSourceUUID = crpp.fileSourceUUID.Get()
-	}
-	if crpp.workUUID.Changed() {
-		body.WorkUUID = crpp.workUUID.Get()
-	}
-	if crpp.startChapter.Changed() {
-		body.StartChapter = crpp.startChapter.Get()
-	}
-	if crpp.endChapter.Changed() {
-		body.EndChapter = crpp.endChapter.Get()
-	}
+	publicBody := body.ToPublic()
+	patch.ValPatch(publicBody)
+	body.FromPublic(publicBody)
 
 	if err := update(
-		crpp.Ctx,
+		ctx,
 		txn,
 		"cat.plans",
 		kind,
-		crpp.PlanUUID,
+		planUUID,
 		body,
 	); err != nil {
 		return nil, err
 	}
 
-	if crpp.fileSourceUUID.Changed() {
+	if patch.FileSourceUUID != nil {
 		if err := updatePlanSources(
-			crpp.Ctx,
+			ctx,
 			txn,
-			crpp.PlanUUID,
+			planUUID,
 			body,
 		); err != nil {
 			return nil, err
 		}
 	}
 
-	if crpp.workUUID.Changed() {
+	if patch.WorkUUID != nil {
 		if err := updatePlanWorks(
-			crpp.Ctx,
+			ctx,
 			txn,
-			crpp.PlanUUID,
+			planUUID,
 			body,
 		); err != nil {
 			return nil, err
 		}
 	}
 
-	if err := txn.Commit(crpp.Ctx); err != nil {
-		return nil, fmt.Errorf("%w: failed to commit transaction for patching plan %s: %w", catalog.ErrInternal, crpp.PlanUUID, err)
+	if err := txn.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("%w: failed to commit transaction for patching plan %s: %w", catalog.ErrInternal, planUUID, err)
 	}
 
 	return &catalog.Plan{
-		UUID:             crpp.PlanUUID,
+		UUID:             planUUID,
 		ChapterRangePlan: body.ToPublic(),
 	}, nil
-}
-
-func (crpp *chapterRangePlanPatcher) Save() error {
-	_, err := crpp.SaveGet()
-	return err
 }

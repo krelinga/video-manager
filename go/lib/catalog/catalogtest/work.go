@@ -16,8 +16,8 @@ func RunWorkTests(t *testing.T, clearAndConnect func(t *testing.T) catalog.Clien
 			name: "GetWork_NotFound",
 			test: func(t *testing.T, client catalog.Client) {
 				ctx := t.Context()
-				uuid := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
-				_, err := client.GetWork(ctx, uuid)
+				workUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
+				_, err := client.GetWork(ctx, workUUID)
 				if !errors.Is(err, catalog.ErrNotFound) {
 					t.Fatalf("expected ErrNotFound, got %v", err)
 				}
@@ -27,7 +27,7 @@ func RunWorkTests(t *testing.T, clearAndConnect func(t *testing.T) catalog.Clien
 			name: "PutMovieWork_Create",
 			test: func(t *testing.T, client catalog.Client) {
 				ctx := t.Context()
-				uuid := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
+				movieWorkUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
 				releaseYear := 1999
 				tmdbID := 12345
 				movieWork := &catalog.MovieWork{
@@ -36,7 +36,7 @@ func RunWorkTests(t *testing.T, clearAndConnect func(t *testing.T) catalog.Clien
 					TMDbID:      &tmdbID,
 				}
 
-				result, err := client.PutMovieWork(ctx, uuid, movieWork)
+				result, err := client.PutMovieWork(ctx, movieWorkUUID, movieWork)
 				if err != nil {
 					t.Fatalf("PutMovieWork failed: %v", err)
 				}
@@ -49,14 +49,14 @@ func RunWorkTests(t *testing.T, clearAndConnect func(t *testing.T) catalog.Clien
 			name: "PutMovieWork_Replace",
 			test: func(t *testing.T, client catalog.Client) {
 				ctx := t.Context()
-				uuid := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
+				movieWorkUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
 				releaseYear := 1999
 				movieWork := &catalog.MovieWork{
 					Title:       "The Matrix",
 					ReleaseYear: &releaseYear,
 				}
 
-				result1, err := client.PutMovieWork(ctx, uuid, movieWork)
+				result1, err := client.PutMovieWork(ctx, movieWorkUUID, movieWork)
 				if err != nil {
 					t.Fatalf("first PutMovieWork failed: %v", err)
 				}
@@ -70,7 +70,7 @@ func RunWorkTests(t *testing.T, clearAndConnect func(t *testing.T) catalog.Clien
 					ReleaseYear: &releaseYear2,
 				}
 
-				result2, err := client.PutMovieWork(ctx, uuid, movieWork2)
+				result2, err := client.PutMovieWork(ctx, movieWorkUUID, movieWork2)
 				if err != nil {
 					t.Fatalf("second PutMovieWork failed: %v", err)
 				}
@@ -78,7 +78,7 @@ func RunWorkTests(t *testing.T, clearAndConnect func(t *testing.T) catalog.Clien
 					t.Fatalf("expected PutResultReplaced, got %v", *result2)
 				}
 
-				work, err := client.GetWork(ctx, uuid)
+				work, err := client.GetWork(ctx, movieWorkUUID)
 				if err != nil {
 					t.Fatalf("GetWork failed: %v", err)
 				}
@@ -91,7 +91,7 @@ func RunWorkTests(t *testing.T, clearAndConnect func(t *testing.T) catalog.Clien
 			name: "PutMovieWork_GetWork",
 			test: func(t *testing.T, client catalog.Client) {
 				ctx := t.Context()
-				uuid := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
+				movieWorkUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
 				releaseYear := 1999
 				tmdbID := 12345
 				movieWork := &catalog.MovieWork{
@@ -100,17 +100,17 @@ func RunWorkTests(t *testing.T, clearAndConnect func(t *testing.T) catalog.Clien
 					TMDbID:      &tmdbID,
 				}
 
-				_, err := client.PutMovieWork(ctx, uuid, movieWork)
+				_, err := client.PutMovieWork(ctx, movieWorkUUID, movieWork)
 				if err != nil {
 					t.Fatalf("PutMovieWork failed: %v", err)
 				}
 
-				work, err := client.GetWork(ctx, uuid)
+				work, err := client.GetWork(ctx, movieWorkUUID)
 				if err != nil {
 					t.Fatalf("GetWork failed: %v", err)
 				}
-				if work.UUID != uuid {
-					t.Fatalf("expected UUID %s, got %s", uuid, work.UUID)
+				if work.UUID != movieWorkUUID {
+					t.Fatalf("expected UUID %s, got %s", movieWorkUUID, work.UUID)
 				}
 				if work.MovieWork == nil {
 					t.Fatal("expected MovieWork to be set")
@@ -130,18 +130,20 @@ func RunWorkTests(t *testing.T, clearAndConnect func(t *testing.T) catalog.Clien
 			name: "PatchMovieWork_SetTitle",
 			test: func(t *testing.T, client catalog.Client) {
 				ctx := t.Context()
-				uuid := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
+				movieWorkUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
 				movieWork := &catalog.MovieWork{
 					Title: "The Matrix",
 				}
 
-				_, err := client.PutMovieWork(ctx, uuid, movieWork)
+				_, err := client.PutMovieWork(ctx, movieWorkUUID, movieWork)
 				if err != nil {
 					t.Fatalf("PutMovieWork failed: %v", err)
 				}
 
-				patcher := client.PatchMovieWork(ctx, uuid)
-				work, err := patcher.SetTitle("The Matrix Reloaded").SaveGet()
+				patch := &catalog.MovieWorkPatch{
+					Title: catalog.Set("The Matrix Reloaded"),
+				}
+				work, err := client.PatchMovieWork(ctx, movieWorkUUID, patch)
 				if err != nil {
 					t.Fatalf("PatchMovieWork failed: %v", err)
 				}
@@ -154,18 +156,20 @@ func RunWorkTests(t *testing.T, clearAndConnect func(t *testing.T) catalog.Clien
 			name: "PatchMovieWork_SetReleaseYear",
 			test: func(t *testing.T, client catalog.Client) {
 				ctx := t.Context()
-				uuid := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
+				movieWorkUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
 				movieWork := &catalog.MovieWork{
 					Title: "The Matrix",
 				}
 
-				_, err := client.PutMovieWork(ctx, uuid, movieWork)
+				_, err := client.PutMovieWork(ctx, movieWorkUUID, movieWork)
 				if err != nil {
 					t.Fatalf("PutMovieWork failed: %v", err)
 				}
 
-				patcher := client.PatchMovieWork(ctx, uuid)
-				work, err := patcher.SetReleaseYear(1999).SaveGet()
+				patch := &catalog.MovieWorkPatch{
+					ReleaseYear: catalog.Set(1999),
+				}
+				work, err := client.PatchMovieWork(ctx, movieWorkUUID, patch)
 				if err != nil {
 					t.Fatalf("PatchMovieWork failed: %v", err)
 				}
@@ -178,20 +182,22 @@ func RunWorkTests(t *testing.T, clearAndConnect func(t *testing.T) catalog.Clien
 			name: "PatchMovieWork_ClearReleaseYear",
 			test: func(t *testing.T, client catalog.Client) {
 				ctx := t.Context()
-				uuid := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
+				movieWorkUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
 				releaseYear := 1999
 				movieWork := &catalog.MovieWork{
 					Title:       "The Matrix",
 					ReleaseYear: &releaseYear,
 				}
 
-				_, err := client.PutMovieWork(ctx, uuid, movieWork)
+				_, err := client.PutMovieWork(ctx, movieWorkUUID, movieWork)
 				if err != nil {
 					t.Fatalf("PutMovieWork failed: %v", err)
 				}
 
-				patcher := client.PatchMovieWork(ctx, uuid)
-				work, err := patcher.ClearReleaseYear().SaveGet()
+				patch := &catalog.MovieWorkPatch{
+					ReleaseYear: catalog.Clear[int](),
+				}
+				work, err := client.PatchMovieWork(ctx, movieWorkUUID, patch)
 				if err != nil {
 					t.Fatalf("PatchMovieWork failed: %v", err)
 				}
@@ -204,19 +210,21 @@ func RunWorkTests(t *testing.T, clearAndConnect func(t *testing.T) catalog.Clien
 			name: "PatchMovieWork_SetAndClearTMDbID",
 			test: func(t *testing.T, client catalog.Client) {
 				ctx := t.Context()
-				uuid := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
+				movieWorkUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
 				movieWork := &catalog.MovieWork{
 					Title: "The Matrix",
 				}
 
-				_, err := client.PutMovieWork(ctx, uuid, movieWork)
+				_, err := client.PutMovieWork(ctx, movieWorkUUID, movieWork)
 				if err != nil {
 					t.Fatalf("PutMovieWork failed: %v", err)
 				}
 
 				// Set TMDbID
-				patcher := client.PatchMovieWork(ctx, uuid)
-				work, err := patcher.SetTMDbID(12345).SaveGet()
+				patch := &catalog.MovieWorkPatch{
+					TMDbID: catalog.Set(12345),
+				}
+				work, err := client.PatchMovieWork(ctx, movieWorkUUID, patch)
 				if err != nil {
 					t.Fatalf("PatchMovieWork SetTMDbID failed: %v", err)
 				}
@@ -225,13 +233,15 @@ func RunWorkTests(t *testing.T, clearAndConnect func(t *testing.T) catalog.Clien
 				}
 
 				// Clear TMDbID
-				patcher2 := client.PatchMovieWork(ctx, uuid)
-				work2, err := patcher2.ClearTMDbID().SaveGet()
+				patch = &catalog.MovieWorkPatch{
+					TMDbID: catalog.Clear[int](),
+				}
+				work, err = client.PatchMovieWork(ctx, movieWorkUUID, patch)
 				if err != nil {
 					t.Fatalf("PatchMovieWork ClearTMDbID failed: %v", err)
 				}
-				if work2.MovieWork.TMDbID != nil {
-					t.Fatalf("expected TMDbID to be nil, got %v", work2.MovieWork.TMDbID)
+				if work.MovieWork.TMDbID != nil {
+					t.Fatalf("expected TMDbID to be nil, got %v", work.MovieWork.TMDbID)
 				}
 			},
 		},
@@ -239,10 +249,12 @@ func RunWorkTests(t *testing.T, clearAndConnect func(t *testing.T) catalog.Clien
 			name: "PatchMovieWork_NotFound",
 			test: func(t *testing.T, client catalog.Client) {
 				ctx := t.Context()
-				uuid := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
+				movieWorkUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
 
-				patcher := client.PatchMovieWork(ctx, uuid)
-				_, err := patcher.SetTitle("Test").SaveGet()
+				patch := &catalog.MovieWorkPatch{
+					Title: catalog.Set("Test"),
+				}
+				_, err := client.PatchMovieWork(ctx, movieWorkUUID, patch)
 				if !errors.Is(err, catalog.ErrNotFound) {
 					t.Fatalf("expected ErrNotFound, got %v", err)
 				}
@@ -252,14 +264,14 @@ func RunWorkTests(t *testing.T, clearAndConnect func(t *testing.T) catalog.Clien
 			name: "PutMovieEditionWork_Create",
 			test: func(t *testing.T, client catalog.Client) {
 				ctx := t.Context()
-				uuid := mustParseUUID(t, "00000000-0000-0000-0000-000000000002")
+				movieEditionWorkUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000002")
 				movieWorkUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
 				movieEditionWork := &catalog.MovieEditionWork{
 					Type:          "Director's Cut",
 					MovieWorkUUID: movieWorkUUID,
 				}
 
-				result, err := client.PutMovieEditionWork(ctx, uuid, movieEditionWork)
+				result, err := client.PutMovieEditionWork(ctx, movieEditionWorkUUID, movieEditionWork)
 				if err != nil {
 					t.Fatalf("PutMovieEditionWork failed: %v", err)
 				}
@@ -272,14 +284,14 @@ func RunWorkTests(t *testing.T, clearAndConnect func(t *testing.T) catalog.Clien
 			name: "PutMovieEditionWork_Replace",
 			test: func(t *testing.T, client catalog.Client) {
 				ctx := t.Context()
-				uuid := mustParseUUID(t, "00000000-0000-0000-0000-000000000002")
+				movieEditionWorkUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000002")
 				movieWorkUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
 				movieEditionWork := &catalog.MovieEditionWork{
 					Type:          "Director's Cut",
 					MovieWorkUUID: movieWorkUUID,
 				}
 
-				result1, err := client.PutMovieEditionWork(ctx, uuid, movieEditionWork)
+				result1, err := client.PutMovieEditionWork(ctx, movieEditionWorkUUID, movieEditionWork)
 				if err != nil {
 					t.Fatalf("first PutMovieEditionWork failed: %v", err)
 				}
@@ -292,7 +304,7 @@ func RunWorkTests(t *testing.T, clearAndConnect func(t *testing.T) catalog.Clien
 					MovieWorkUUID: movieWorkUUID,
 				}
 
-				result2, err := client.PutMovieEditionWork(ctx, uuid, movieEditionWork2)
+				result2, err := client.PutMovieEditionWork(ctx, movieEditionWorkUUID, movieEditionWork2)
 				if err != nil {
 					t.Fatalf("second PutMovieEditionWork failed: %v", err)
 				}
@@ -300,7 +312,7 @@ func RunWorkTests(t *testing.T, clearAndConnect func(t *testing.T) catalog.Clien
 					t.Fatalf("expected PutResultReplaced, got %v", *result2)
 				}
 
-				work, err := client.GetWork(ctx, uuid)
+				work, err := client.GetWork(ctx, movieEditionWorkUUID)
 				if err != nil {
 					t.Fatalf("GetWork failed: %v", err)
 				}
@@ -313,24 +325,24 @@ func RunWorkTests(t *testing.T, clearAndConnect func(t *testing.T) catalog.Clien
 			name: "PutMovieEditionWork_GetWork",
 			test: func(t *testing.T, client catalog.Client) {
 				ctx := t.Context()
-				uuid := mustParseUUID(t, "00000000-0000-0000-0000-000000000002")
+				movieEditionWorkUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000002")
 				movieWorkUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
 				movieEditionWork := &catalog.MovieEditionWork{
 					Type:          "Director's Cut",
 					MovieWorkUUID: movieWorkUUID,
 				}
 
-				_, err := client.PutMovieEditionWork(ctx, uuid, movieEditionWork)
+				_, err := client.PutMovieEditionWork(ctx, movieEditionWorkUUID, movieEditionWork)
 				if err != nil {
 					t.Fatalf("PutMovieEditionWork failed: %v", err)
 				}
 
-				work, err := client.GetWork(ctx, uuid)
+				work, err := client.GetWork(ctx, movieEditionWorkUUID)
 				if err != nil {
 					t.Fatalf("GetWork failed: %v", err)
 				}
-				if work.UUID != uuid {
-					t.Fatalf("expected UUID %s, got %s", uuid, work.UUID)
+				if work.UUID != movieEditionWorkUUID {
+					t.Fatalf("expected UUID %s, got %s", movieEditionWorkUUID, work.UUID)
 				}
 				if work.MovieEditionWork == nil {
 					t.Fatal("expected MovieEditionWork to be set")
@@ -347,20 +359,22 @@ func RunWorkTests(t *testing.T, clearAndConnect func(t *testing.T) catalog.Clien
 			name: "PatchMovieEditionWork_SetType",
 			test: func(t *testing.T, client catalog.Client) {
 				ctx := t.Context()
-				uuid := mustParseUUID(t, "00000000-0000-0000-0000-000000000002")
+				movieEditionWorkUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000002")
 				movieWorkUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
 				movieEditionWork := &catalog.MovieEditionWork{
 					Type:          "Director's Cut",
 					MovieWorkUUID: movieWorkUUID,
 				}
 
-				_, err := client.PutMovieEditionWork(ctx, uuid, movieEditionWork)
+				_, err := client.PutMovieEditionWork(ctx, movieEditionWorkUUID, movieEditionWork)
 				if err != nil {
 					t.Fatalf("PutMovieEditionWork failed: %v", err)
 				}
 
-				patcher := client.PatchMovieEditionWork(ctx, uuid)
-				work, err := patcher.SetType("Extended Edition").SaveGet()
+				patch := &catalog.MovieEditionWorkPatch{
+					Type: catalog.Set("Extended Edition"),
+				}
+				work, err := client.PatchMovieEditionWork(ctx, movieEditionWorkUUID, patch)
 				if err != nil {
 					t.Fatalf("PatchMovieEditionWork failed: %v", err)
 				}
@@ -373,7 +387,7 @@ func RunWorkTests(t *testing.T, clearAndConnect func(t *testing.T) catalog.Clien
 			name: "PatchMovieEditionWork_SetMovieWorkUUID",
 			test: func(t *testing.T, client catalog.Client) {
 				ctx := t.Context()
-				uuid := mustParseUUID(t, "00000000-0000-0000-0000-000000000002")
+				movieEditionWorkUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000002")
 				movieWorkUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
 				newMovieWorkUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000003")
 				movieEditionWork := &catalog.MovieEditionWork{
@@ -381,13 +395,15 @@ func RunWorkTests(t *testing.T, clearAndConnect func(t *testing.T) catalog.Clien
 					MovieWorkUUID: movieWorkUUID,
 				}
 
-				_, err := client.PutMovieEditionWork(ctx, uuid, movieEditionWork)
+				_, err := client.PutMovieEditionWork(ctx, movieEditionWorkUUID, movieEditionWork)
 				if err != nil {
 					t.Fatalf("PutMovieEditionWork failed: %v", err)
 				}
 
-				patcher := client.PatchMovieEditionWork(ctx, uuid)
-				work, err := patcher.SetMovieWorkUUID(newMovieWorkUUID).SaveGet()
+				patch := &catalog.MovieEditionWorkPatch{
+					MovieWorkUUID: catalog.Set(newMovieWorkUUID),
+				}
+				work, err := client.PatchMovieEditionWork(ctx, movieEditionWorkUUID, patch)
 				if err != nil {
 					t.Fatalf("PatchMovieEditionWork failed: %v", err)
 				}
@@ -400,10 +416,12 @@ func RunWorkTests(t *testing.T, clearAndConnect func(t *testing.T) catalog.Clien
 			name: "PatchMovieEditionWork_NotFound",
 			test: func(t *testing.T, client catalog.Client) {
 				ctx := t.Context()
-				uuid := mustParseUUID(t, "00000000-0000-0000-0000-000000000002")
+				movieEditionWorkUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000002")
 
-				patcher := client.PatchMovieEditionWork(ctx, uuid)
-				_, err := patcher.SetType("Test").SaveGet()
+				patch := &catalog.MovieEditionWorkPatch{
+					Type: catalog.Set("Test"),
+				}
+				_, err := client.PatchMovieEditionWork(ctx, movieEditionWorkUUID, patch)
 				if !errors.Is(err, catalog.ErrNotFound) {
 					t.Fatalf("expected ErrNotFound, got %v", err)
 				}
@@ -413,7 +431,7 @@ func RunWorkTests(t *testing.T, clearAndConnect func(t *testing.T) catalog.Clien
 			name: "PutMovieWork_WrongKind",
 			test: func(t *testing.T, client catalog.Client) {
 				ctx := t.Context()
-				uuid := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
+				conflictUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
 				movieWorkUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000002")
 
 				// First create a MovieEditionWork
@@ -421,14 +439,16 @@ func RunWorkTests(t *testing.T, clearAndConnect func(t *testing.T) catalog.Clien
 					Type:          "Director's Cut",
 					MovieWorkUUID: movieWorkUUID,
 				}
-				_, err := client.PutMovieEditionWork(ctx, uuid, movieEditionWork)
+				_, err := client.PutMovieEditionWork(ctx, conflictUUID, movieEditionWork)
 				if err != nil {
 					t.Fatalf("PutMovieEditionWork failed: %v", err)
 				}
 
 				// Try to patch it as a MovieWork
-				patcher := client.PatchMovieWork(ctx, uuid)
-				_, err = patcher.SetTitle("Test").SaveGet()
+				patch := &catalog.MovieWorkPatch{
+					Title: catalog.Set("Test"),
+				}
+				_, err = client.PatchMovieWork(ctx, conflictUUID, patch)
 				if !errors.Is(err, catalog.ErrKind) {
 					t.Fatalf("expected ErrKind, got %v", err)
 				}
@@ -438,21 +458,23 @@ func RunWorkTests(t *testing.T, clearAndConnect func(t *testing.T) catalog.Clien
 			name: "PutMovieEditionWork_WrongKind",
 			test: func(t *testing.T, client catalog.Client) {
 				ctx := t.Context()
-				uuid := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
+				conflictUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
 				movieWorkUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000002")
 
 				// First create a MovieWork
 				movieWork := &catalog.MovieWork{
 					Title: "The Matrix",
 				}
-				_, err := client.PutMovieWork(ctx, uuid, movieWork)
+				_, err := client.PutMovieWork(ctx, conflictUUID, movieWork)
 				if err != nil {
 					t.Fatalf("PutMovieWork failed: %v", err)
 				}
 
 				// Try to patch it as a MovieEditionWork
-				patcher := client.PatchMovieEditionWork(ctx, uuid)
-				_, err = patcher.SetMovieWorkUUID(movieWorkUUID).SaveGet()
+				patch := &catalog.MovieEditionWorkPatch{
+					MovieWorkUUID: catalog.Set(movieWorkUUID),
+				}
+				_, err = client.PatchMovieEditionWork(ctx, conflictUUID, patch)
 				if !errors.Is(err, catalog.ErrKind) {
 					t.Fatalf("expected ErrKind, got %v", err)
 				}

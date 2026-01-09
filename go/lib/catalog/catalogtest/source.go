@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/krelinga/video-manager/go/lib/catalog"
 )
 
@@ -16,8 +17,8 @@ func RunSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Clien
 			name: "GetSource_NotFound",
 			test: func(t *testing.T, client catalog.Client) {
 				ctx := t.Context()
-				uuid := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
-				_, err := client.GetSource(ctx, uuid)
+				sourceUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
+				_, err := client.GetSource(ctx, sourceUUID)
 				if !errors.Is(err, catalog.ErrNotFound) {
 					t.Fatalf("expected ErrNotFound, got %v", err)
 				}
@@ -27,12 +28,12 @@ func RunSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Clien
 			name: "PutFileSource_Create",
 			test: func(t *testing.T, client catalog.Client) {
 				ctx := t.Context()
-				uuid := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
+				fileSourceUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
 				fileSource := &catalog.FileSource{
 					Path: "/path/to/file.mkv",
 				}
 
-				result, err := client.PutFileSource(ctx, uuid, fileSource)
+				result, err := client.PutFileSource(ctx, fileSourceUUID, fileSource)
 				if err != nil {
 					t.Fatalf("PutFileSource failed: %v", err)
 				}
@@ -45,12 +46,12 @@ func RunSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Clien
 			name: "PutFileSource_Replace",
 			test: func(t *testing.T, client catalog.Client) {
 				ctx := t.Context()
-				uuid := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
+				fileSourceUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
 				fileSource := &catalog.FileSource{
 					Path: "/path/to/file.mkv",
 				}
 
-				result1, err := client.PutFileSource(ctx, uuid, fileSource)
+				result1, err := client.PutFileSource(ctx, fileSourceUUID, fileSource)
 				if err != nil {
 					t.Fatalf("first PutFileSource failed: %v", err)
 				}
@@ -62,7 +63,7 @@ func RunSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Clien
 					Path: "/path/to/different.mkv",
 				}
 
-				result2, err := client.PutFileSource(ctx, uuid, fileSource2)
+				result2, err := client.PutFileSource(ctx, fileSourceUUID, fileSource2)
 				if err != nil {
 					t.Fatalf("second PutFileSource failed: %v", err)
 				}
@@ -70,7 +71,7 @@ func RunSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Clien
 					t.Fatalf("expected PutResultReplaced, got %v", *result2)
 				}
 
-				source, err := client.GetSource(ctx, uuid)
+				source, err := client.GetSource(ctx, fileSourceUUID)
 				if err != nil {
 					t.Fatalf("GetSource failed: %v", err)
 				}
@@ -83,24 +84,24 @@ func RunSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Clien
 			name: "PutFileSource_GetSource",
 			test: func(t *testing.T, client catalog.Client) {
 				ctx := t.Context()
-				uuid := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
+				fileSourceUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
 				discSourceUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000002")
 				fileSource := &catalog.FileSource{
 					Path:           "/path/to/file.mkv",
 					DiscSourceUUID: &discSourceUUID,
 				}
 
-				_, err := client.PutFileSource(ctx, uuid, fileSource)
+				_, err := client.PutFileSource(ctx, fileSourceUUID, fileSource)
 				if err != nil {
 					t.Fatalf("PutFileSource failed: %v", err)
 				}
 
-				source, err := client.GetSource(ctx, uuid)
+				source, err := client.GetSource(ctx, fileSourceUUID)
 				if err != nil {
 					t.Fatalf("GetSource failed: %v", err)
 				}
-				if source.UUID != uuid {
-					t.Fatalf("expected UUID %s, got %s", uuid, source.UUID)
+				if source.UUID != fileSourceUUID {
+					t.Fatalf("expected UUID %s, got %s", fileSourceUUID, source.UUID)
 				}
 				if source.FileSource == nil {
 					t.Fatal("expected FileSource to be set")
@@ -117,18 +118,20 @@ func RunSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Clien
 			name: "PatchFileSource_SetPath",
 			test: func(t *testing.T, client catalog.Client) {
 				ctx := t.Context()
-				uuid := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
+				fileSourceUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
 				fileSource := &catalog.FileSource{
 					Path: "/path/to/file.mkv",
 				}
 
-				_, err := client.PutFileSource(ctx, uuid, fileSource)
+				_, err := client.PutFileSource(ctx, fileSourceUUID, fileSource)
 				if err != nil {
 					t.Fatalf("PutFileSource failed: %v", err)
 				}
 
-				patcher := client.PatchFileSource(ctx, uuid)
-				source, err := patcher.SetPath("/new/path.mkv").SaveGet()
+				patch := &catalog.FileSourcePatch{
+					Path: catalog.Set("/new/path.mkv"),
+				}
+				source, err := client.PatchFileSource(ctx, fileSourceUUID, patch)
 				if err != nil {
 					t.Fatalf("PatchFileSource failed: %v", err)
 				}
@@ -141,19 +144,21 @@ func RunSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Clien
 			name: "PatchFileSource_SetDiscSourceUUID",
 			test: func(t *testing.T, client catalog.Client) {
 				ctx := t.Context()
-				uuid := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
+				fileSourceUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
 				fileSource := &catalog.FileSource{
 					Path: "/path/to/file.mkv",
 				}
 
-				_, err := client.PutFileSource(ctx, uuid, fileSource)
+				_, err := client.PutFileSource(ctx, fileSourceUUID, fileSource)
 				if err != nil {
 					t.Fatalf("PutFileSource failed: %v", err)
 				}
 
 				discSourceUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000002")
-				patcher := client.PatchFileSource(ctx, uuid)
-				source, err := patcher.SetDiscSourceUUID(discSourceUUID).SaveGet()
+				patch := &catalog.FileSourcePatch{
+					DiscSourceUUID: catalog.Set(discSourceUUID),
+				}
+				source, err := client.PatchFileSource(ctx, fileSourceUUID, patch)
 				if err != nil {
 					t.Fatalf("PatchFileSource failed: %v", err)
 				}
@@ -166,20 +171,22 @@ func RunSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Clien
 			name: "PatchFileSource_ClearDiscSourceUUID",
 			test: func(t *testing.T, client catalog.Client) {
 				ctx := t.Context()
-				uuid := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
+				fileSourceUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
 				discSourceUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000002")
 				fileSource := &catalog.FileSource{
 					Path:           "/path/to/file.mkv",
 					DiscSourceUUID: &discSourceUUID,
 				}
 
-				_, err := client.PutFileSource(ctx, uuid, fileSource)
+				_, err := client.PutFileSource(ctx, fileSourceUUID, fileSource)
 				if err != nil {
 					t.Fatalf("PutFileSource failed: %v", err)
 				}
 
-				patcher := client.PatchFileSource(ctx, uuid)
-				source, err := patcher.ClearDiscSourceUUID().SaveGet()
+				patch := &catalog.FileSourcePatch{
+					DiscSourceUUID: catalog.Clear[uuid.UUID](),
+				}
+				source, err := client.PatchFileSource(ctx, fileSourceUUID, patch)
 				if err != nil {
 					t.Fatalf("PatchFileSource failed: %v", err)
 				}
@@ -192,10 +199,12 @@ func RunSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Clien
 			name: "PatchFileSource_NotFound",
 			test: func(t *testing.T, client catalog.Client) {
 				ctx := t.Context()
-				uuid := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
+				fileSourceUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
 
-				patcher := client.PatchFileSource(ctx, uuid)
-				_, err := patcher.SetPath("/test/path.mkv").SaveGet()
+				patch := &catalog.FileSourcePatch{
+					Path: catalog.Set("/test/path.mkv"),
+				}
+				_, err := client.PatchFileSource(ctx, fileSourceUUID, patch)
 				if !errors.Is(err, catalog.ErrNotFound) {
 					t.Fatalf("expected ErrNotFound, got %v", err)
 				}
@@ -205,14 +214,14 @@ func RunSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Clien
 			name: "PutDiscSource_Create",
 			test: func(t *testing.T, client catalog.Client) {
 				ctx := t.Context()
-				uuid := mustParseUUID(t, "00000000-0000-0000-0000-000000000002")
+				discSourceUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000002")
 				discSource := &catalog.DiscSource{
 					OriginalName:  "Movie Disc",
 					Path:          "/mnt/disc",
 					AllFilesAdded: false,
 				}
 
-				result, err := client.PutDiscSource(ctx, uuid, discSource)
+				result, err := client.PutDiscSource(ctx, discSourceUUID, discSource)
 				if err != nil {
 					t.Fatalf("PutDiscSource failed: %v", err)
 				}
@@ -225,14 +234,14 @@ func RunSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Clien
 			name: "PutDiscSource_Replace",
 			test: func(t *testing.T, client catalog.Client) {
 				ctx := t.Context()
-				uuid := mustParseUUID(t, "00000000-0000-0000-0000-000000000002")
+				discSourceUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000002")
 				discSource := &catalog.DiscSource{
 					OriginalName:  "Movie Disc",
 					Path:          "/mnt/disc",
 					AllFilesAdded: false,
 				}
 
-				result1, err := client.PutDiscSource(ctx, uuid, discSource)
+				result1, err := client.PutDiscSource(ctx, discSourceUUID, discSource)
 				if err != nil {
 					t.Fatalf("first PutDiscSource failed: %v", err)
 				}
@@ -246,7 +255,7 @@ func RunSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Clien
 					AllFilesAdded: true,
 				}
 
-				result2, err := client.PutDiscSource(ctx, uuid, discSource2)
+				result2, err := client.PutDiscSource(ctx, discSourceUUID, discSource2)
 				if err != nil {
 					t.Fatalf("second PutDiscSource failed: %v", err)
 				}
@@ -254,7 +263,7 @@ func RunSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Clien
 					t.Fatalf("expected PutResultReplaced, got %v", *result2)
 				}
 
-				source, err := client.GetSource(ctx, uuid)
+				source, err := client.GetSource(ctx, discSourceUUID)
 				if err != nil {
 					t.Fatalf("GetSource failed: %v", err)
 				}
@@ -267,24 +276,24 @@ func RunSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Clien
 			name: "PutDiscSource_GetSource",
 			test: func(t *testing.T, client catalog.Client) {
 				ctx := t.Context()
-				uuid := mustParseUUID(t, "00000000-0000-0000-0000-000000000002")
+				discSourceUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000002")
 				discSource := &catalog.DiscSource{
 					OriginalName:  "Movie Disc",
 					Path:          "/mnt/disc",
 					AllFilesAdded: true,
 				}
 
-				_, err := client.PutDiscSource(ctx, uuid, discSource)
+				_, err := client.PutDiscSource(ctx, discSourceUUID, discSource)
 				if err != nil {
 					t.Fatalf("PutDiscSource failed: %v", err)
 				}
 
-				source, err := client.GetSource(ctx, uuid)
+				source, err := client.GetSource(ctx, discSourceUUID)
 				if err != nil {
 					t.Fatalf("GetSource failed: %v", err)
 				}
-				if source.UUID != uuid {
-					t.Fatalf("expected UUID %s, got %s", uuid, source.UUID)
+				if source.UUID != discSourceUUID {
+					t.Fatalf("expected UUID %s, got %s", discSourceUUID, source.UUID)
 				}
 				if source.DiscSource == nil {
 					t.Fatal("expected DiscSource to be set")
@@ -304,20 +313,22 @@ func RunSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Clien
 			name: "PatchDiscSource_SetOriginalName",
 			test: func(t *testing.T, client catalog.Client) {
 				ctx := t.Context()
-				uuid := mustParseUUID(t, "00000000-0000-0000-0000-000000000002")
+				discSourceUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000002")
 				discSource := &catalog.DiscSource{
 					OriginalName:  "Movie Disc",
 					Path:          "/mnt/disc",
 					AllFilesAdded: false,
 				}
 
-				_, err := client.PutDiscSource(ctx, uuid, discSource)
+				_, err := client.PutDiscSource(ctx, discSourceUUID, discSource)
 				if err != nil {
 					t.Fatalf("PutDiscSource failed: %v", err)
 				}
 
-				patcher := client.PatchDiscSource(ctx, uuid)
-				source, err := patcher.SetOriginalName("Updated Disc").SaveGet()
+				patch := &catalog.DiscSourcePatch{
+					OriginalName: catalog.Set("Updated Disc"),
+				}
+				source, err := client.PatchDiscSource(ctx, discSourceUUID, patch)
 				if err != nil {
 					t.Fatalf("PatchDiscSource failed: %v", err)
 				}
@@ -330,20 +341,22 @@ func RunSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Clien
 			name: "PatchDiscSource_SetPath",
 			test: func(t *testing.T, client catalog.Client) {
 				ctx := t.Context()
-				uuid := mustParseUUID(t, "00000000-0000-0000-0000-000000000002")
+				discSourceUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000002")
 				discSource := &catalog.DiscSource{
 					OriginalName:  "Movie Disc",
 					Path:          "/mnt/disc",
 					AllFilesAdded: false,
 				}
 
-				_, err := client.PutDiscSource(ctx, uuid, discSource)
+				_, err := client.PutDiscSource(ctx, discSourceUUID, discSource)
 				if err != nil {
 					t.Fatalf("PutDiscSource failed: %v", err)
 				}
 
-				patcher := client.PatchDiscSource(ctx, uuid)
-				source, err := patcher.SetPath("/mnt/disc2").SaveGet()
+				patch := &catalog.DiscSourcePatch{
+					Path: catalog.Set("/mnt/disc2"),
+				}
+				source, err := client.PatchDiscSource(ctx, discSourceUUID, patch)
 				if err != nil {
 					t.Fatalf("PatchDiscSource failed: %v", err)
 				}
@@ -356,20 +369,22 @@ func RunSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Clien
 			name: "PatchDiscSource_SetAllFilesAdded",
 			test: func(t *testing.T, client catalog.Client) {
 				ctx := t.Context()
-				uuid := mustParseUUID(t, "00000000-0000-0000-0000-000000000002")
+				discSourceUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000002")
 				discSource := &catalog.DiscSource{
 					OriginalName:  "Movie Disc",
 					Path:          "/mnt/disc",
 					AllFilesAdded: false,
 				}
 
-				_, err := client.PutDiscSource(ctx, uuid, discSource)
+				_, err := client.PutDiscSource(ctx, discSourceUUID, discSource)
 				if err != nil {
 					t.Fatalf("PutDiscSource failed: %v", err)
 				}
 
-				patcher := client.PatchDiscSource(ctx, uuid)
-				source, err := patcher.SetAllFilesAdded(true).SaveGet()
+				patch := &catalog.DiscSourcePatch{
+					AllFilesAdded: catalog.Set(true),
+				}
+				source, err := client.PatchDiscSource(ctx, discSourceUUID, patch)
 				if err != nil {
 					t.Fatalf("PatchDiscSource failed: %v", err)
 				}
@@ -382,10 +397,12 @@ func RunSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Clien
 			name: "PatchDiscSource_NotFound",
 			test: func(t *testing.T, client catalog.Client) {
 				ctx := t.Context()
-				uuid := mustParseUUID(t, "00000000-0000-0000-0000-000000000002")
+				discSourceUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000002")
 
-				patcher := client.PatchDiscSource(ctx, uuid)
-				_, err := patcher.SetOriginalName("Test").SaveGet()
+				patch := &catalog.DiscSourcePatch{
+					OriginalName: catalog.Set("Test"),
+				}
+				_, err := client.PatchDiscSource(ctx, discSourceUUID, patch)
 				if !errors.Is(err, catalog.ErrNotFound) {
 					t.Fatalf("expected ErrNotFound, got %v", err)
 				}
@@ -395,7 +412,7 @@ func RunSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Clien
 			name: "PatchFileSource_WrongKind",
 			test: func(t *testing.T, client catalog.Client) {
 				ctx := t.Context()
-				uuid := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
+				conflictUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
 
 				// First create a DiscSource
 				discSource := &catalog.DiscSource{
@@ -403,14 +420,16 @@ func RunSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Clien
 					Path:          "/mnt/disc",
 					AllFilesAdded: false,
 				}
-				_, err := client.PutDiscSource(ctx, uuid, discSource)
+				_, err := client.PutDiscSource(ctx, conflictUUID, discSource)
 				if err != nil {
 					t.Fatalf("PutDiscSource failed: %v", err)
 				}
 
 				// Try to patch it as a FileSource
-				patcher := client.PatchFileSource(ctx, uuid)
-				_, err = patcher.SetPath("/test/path.mkv").SaveGet()
+				patch := &catalog.FileSourcePatch{
+					Path: catalog.Set("/test/path.mkv"),
+				}
+				_, err = client.PatchFileSource(ctx, conflictUUID, patch)
 				if !errors.Is(err, catalog.ErrKind) {
 					t.Fatalf("expected ErrKind, got %v", err)
 				}
@@ -420,20 +439,22 @@ func RunSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Clien
 			name: "PatchDiscSource_WrongKind",
 			test: func(t *testing.T, client catalog.Client) {
 				ctx := t.Context()
-				uuid := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
+				conflictUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
 
 				// First create a FileSource
 				fileSource := &catalog.FileSource{
 					Path: "/path/to/file.mkv",
 				}
-				_, err := client.PutFileSource(ctx, uuid, fileSource)
+				_, err := client.PutFileSource(ctx, conflictUUID, fileSource)
 				if err != nil {
 					t.Fatalf("PutFileSource failed: %v", err)
 				}
 
 				// Try to patch it as a DiscSource
-				patcher := client.PatchDiscSource(ctx, uuid)
-				_, err = patcher.SetOriginalName("Test").SaveGet()
+				patch := &catalog.DiscSourcePatch{
+					OriginalName: catalog.Set("Test"),
+				}
+				_, err = client.PatchDiscSource(ctx, conflictUUID, patch)
 				if !errors.Is(err, catalog.ErrKind) {
 					t.Fatalf("expected ErrKind, got %v", err)
 				}
