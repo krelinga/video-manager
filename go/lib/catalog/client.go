@@ -160,6 +160,10 @@ type DirectPlan struct {
 	WorkUUID       uuid.UUID
 }
 
+func (dp *DirectPlan) Validate() error {
+	return nil
+}
+
 type DirectPlanPatcher interface {
 	// Chainable setter methods for fields to be updated.
 	SetFileSourceUUID(uuid uuid.UUID) DirectPlanPatcher
@@ -180,6 +184,10 @@ type ChapterRangePlan struct {
 	// If nil, means from start / to end.
 	StartChapter *int
 	EndChapter   *int
+}
+
+func (crp *ChapterRangePlan) Validate() error {
+	return nil
 }
 
 type ChapterRangePlanPatcher interface {

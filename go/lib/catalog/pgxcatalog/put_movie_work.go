@@ -15,9 +15,6 @@ func (c *Client) PutMovieWork(ctx context.Context, workUUID uuid.UUID, movieWork
 	if movieWork == nil {
 		return nil, fmt.Errorf("%w: movieWork cannot be nil", catalog.ErrParams)
 	}
-	if err := movieWork.Validate(); err != nil {
-		return nil, err
-	}
 
 	body := &movieWorkJSON{}
 	body.FromPublic(movieWork)

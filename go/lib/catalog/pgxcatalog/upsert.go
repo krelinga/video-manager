@@ -2,7 +2,6 @@ package pgxcatalog
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -21,8 +20,11 @@ func upsert(
 	table string,
 	kind enum,
 	entityUUID uuid.UUID,
-	body json.Marshaler,
+	body entityJSON,
 ) (*catalog.PutResult, error) {
+	if err := body.Validate(); err != nil {
+		return nil, err
+	}
 	rawBody, err := body.MarshalJSON()
 	if err != nil {
 		return nil, err

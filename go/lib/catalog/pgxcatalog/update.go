@@ -2,7 +2,6 @@ package pgxcatalog
 
 import (
 	"context"
-	"encoding/json"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -19,8 +18,11 @@ func update(
 	table string,
 	kind enum,
 	entityUUID uuid.UUID,
-	body json.Marshaler,
+	body entityJSON,
 ) error {
+	if err := body.Validate(); err != nil {
+		return err
+	}
 	rawBody, err := body.MarshalJSON()
 	if err != nil {
 		return err

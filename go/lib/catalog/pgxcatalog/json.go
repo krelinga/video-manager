@@ -8,6 +8,11 @@ import (
 	"github.com/krelinga/video-manager/go/lib/catalog"
 )
 
+type entityJSON interface {
+	Validate() error
+	MarshalJSON() ([]byte, error)
+}
+
 type movieWorkJSON struct {
 	Title       string `json:"title"`
 	ReleaseYear *int   `json:"release_year,omitempty"`
@@ -53,6 +58,10 @@ func (mv *movieWorkJSON) MarshalJSON() ([]byte, error) {
 	return bytes, nil
 }
 
+func (mv *movieWorkJSON) Validate() error {
+	return mv.ToPublic().Validate()
+}
+
 type movieEditionWorkJSON struct {
 	Type          string    `json:"type"`
 	MovieWorkUUID uuid.UUID `json:"movie_work_uuid,omitempty"`
@@ -95,6 +104,10 @@ func (mew *movieEditionWorkJSON) MarshalJSON() ([]byte, error) {
 	return bytes, nil
 }
 
+func (mew *movieEditionWorkJSON) Validate() error {
+	return mew.ToPublic().Validate()
+}
+
 type fileSourceJSON struct {
 	Path           string     `json:"path"`
 	DiscSourceUUID *uuid.UUID `json:"disc_source_uuid,omitempty"`
@@ -135,6 +148,10 @@ func (fs *fileSourceJSON) MarshalJSON() ([]byte, error) {
 		return nil, fmt.Errorf("%w: failed to marshal file source JSON: %w", catalog.ErrInternal, err)
 	}
 	return bytes, nil
+}
+
+func (fs *fileSourceJSON) Validate() error {
+	return fs.ToPublic().Validate()
 }
 
 type discSourceJSON struct {
@@ -182,6 +199,10 @@ func (ds *discSourceJSON) MarshalJSON() ([]byte, error) {
 	return bytes, nil
 }
 
+func (ds *discSourceJSON) Validate() error {
+	return ds.ToPublic().Validate()
+}
+
 type directPlanJSON struct {
 	FileSourceUUID uuid.UUID `json:"file_source_uuid"`
 	WorkUUID       uuid.UUID `json:"work_uuid"`
@@ -222,6 +243,10 @@ func (dp *directPlanJSON) MarshalJSON() ([]byte, error) {
 		return nil, fmt.Errorf("%w: failed to marshal direct plan JSON: %w", catalog.ErrInternal, err)
 	}
 	return bytes, nil
+}
+
+func (dp *directPlanJSON) Validate() error {
+	return dp.ToPublic().Validate()
 }
 
 type chapterRangePlanJSON struct {
@@ -270,4 +295,8 @@ func (crp *chapterRangePlanJSON) MarshalJSON() ([]byte, error) {
 		return nil, fmt.Errorf("%w: failed to marshal chapter range plan JSON: %w", catalog.ErrInternal, err)
 	}
 	return bytes, nil
+}
+
+func (crp *chapterRangePlanJSON) Validate() error {
+	return crp.ToPublic().Validate()
 }
