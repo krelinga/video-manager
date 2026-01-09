@@ -110,29 +110,9 @@ func (c *Client) ListPlans(ctx context.Context, params *catalog.ListPlansParams)
 			return nil, nil, fmt.Errorf("%w: failed to scan plan row: %w", catalog.ErrInternal, err)
 		}
 
-		if !kind.IsValid() {
-			return nil, nil, fmt.Errorf("%w: invalid plan kind %q for plan %s", catalog.ErrInternal, kind, planUUID)
-		}
-
-		plan := &catalog.Plan{
-			UUID: planUUID,
-		}
-
-		switch kind {
-		case planKindDirect:
-			var body directPlanJSON
-			if err := body.UnmarshalJSON(rawBody); err != nil {
-				return nil, nil, err
-			}
-			plan.DirectPlan = body.ToPublic()
-		case planKindChapterRange:
-			var body chapterRangePlanJSON
-			if err := body.UnmarshalJSON(rawBody); err != nil {
-				return nil, nil, err
-			}
-			plan.ChapterRangePlan = body.ToPublic()
-		default:
-			return nil, nil, fmt.Errorf("%w: unhandled plan kind %q for plan %s", catalog.ErrInternal, kind, planUUID)
+		plan, err := toPublicPlan(planUUID, kind, rawBody)
+		if err != nil {
+			return nil, nil, err
 		}
 
 		plans = append(plans, plan)

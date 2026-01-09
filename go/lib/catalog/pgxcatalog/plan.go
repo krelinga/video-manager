@@ -2,15 +2,17 @@ package pgxcatalog
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/krelinga/video-manager/go/lib/catalog"
 )
 
 type planBody interface {
 	Validate() error
 	GetPlanSources() []uuid.UUID
-	GetPlanWorks() []uuid.UUID 
+	GetPlanWorks() []uuid.UUID
 }
 
 func updatePlanSources(
@@ -71,4 +73,33 @@ func updatePlanWorks(
 	}
 
 	return nil
+}
+
+func toPublicPlan(planUUID uuid.UUID, kind planKind, rawBody []byte) (*catalog.Plan, error) {
+	if !kind.IsValid() {
+		return nil, fmt.Errorf("%w: invalid plan kind %q for plan %s", catalog.ErrInternal, kind, planUUID)
+	}
+
+	plan := &catalog.Plan{
+		UUID: planUUID,
+	}
+
+	switch kind {
+	case planKindDirect:
+		var body directPlanJSON
+		if err := body.UnmarshalJSON(rawBody); err != nil {
+			return nil, err
+		}
+		plan.DirectPlan = body.ToPublic()
+	case planKindChapterRange:
+		var body chapterRangePlanJSON
+		if err := body.UnmarshalJSON(rawBody); err != nil {
+			return nil, err
+		}
+		plan.ChapterRangePlan = body.ToPublic()
+	default:
+		return nil, fmt.Errorf("%w: unhandled plan kind %q for plan %s", catalog.ErrInternal, kind, planUUID)
+	}
+
+	return plan, nil
 }

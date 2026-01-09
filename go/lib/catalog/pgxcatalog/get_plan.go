@@ -28,24 +28,9 @@ func (c *Client) GetPlan(ctx context.Context, planUUID uuid.UUID) (*catalog.Plan
 		return nil, fmt.Errorf("%w: invalid plan kind %q for plan %s", catalog.ErrInternal, kind, planUUID)
 	}
 
-	plan := &catalog.Plan{
-		UUID: planUUID,
-	}
-	switch kind {
-	case planKindDirect:
-		var body directPlanJSON
-		if err := body.UnmarshalJSON(rawBody); err != nil {
-			return nil, err
-		}
-		plan.DirectPlan = body.ToPublic()
-	case planKindChapterRange:
-		var body chapterRangePlanJSON
-		if err := body.UnmarshalJSON(rawBody); err != nil {
-			return nil, err
-		}
-		plan.ChapterRangePlan = body.ToPublic()
-	default:
-		return nil, fmt.Errorf("%w: unhandled plan kind %q for plan %s", catalog.ErrInternal, kind, planUUID)
+	plan, err := toPublicPlan(planUUID, kind, rawBody)
+	if err != nil {
+		return nil, err
 	}
 
 	return plan, nil
