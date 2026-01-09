@@ -249,6 +249,14 @@ func (dp *directPlanJSON) Validate() error {
 	return dp.ToPublic().Validate()
 }
 
+func (dp *directPlanJSON) GetPlanSources() []uuid.UUID {
+	return []uuid.UUID{dp.FileSourceUUID}
+}
+
+func (dp *directPlanJSON) GetPlanWorks() []uuid.UUID {
+	return []uuid.UUID{dp.WorkUUID}
+}
+
 type chapterRangePlanJSON struct {
 	FileSourceUUID uuid.UUID `json:"file_source_uuid"`
 	WorkUUID       uuid.UUID `json:"work_uuid"`
@@ -299,4 +307,12 @@ func (crp *chapterRangePlanJSON) MarshalJSON() ([]byte, error) {
 
 func (crp *chapterRangePlanJSON) Validate() error {
 	return crp.ToPublic().Validate()
+}
+
+func (crp *chapterRangePlanJSON) GetPlanSources() []uuid.UUID {
+	return []uuid.UUID{crp.FileSourceUUID}
+}
+
+func (crp *chapterRangePlanJSON) GetPlanWorks() []uuid.UUID {
+	return []uuid.UUID{crp.WorkUUID}
 }

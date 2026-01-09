@@ -22,15 +22,15 @@ CREATE TABLE cat.plans (
     body JSONB NOT NULL CHECK (body <> '{}'::jsonb)
 );
 
--- Create plan_inputs table
-CREATE TABLE cat.plan_inputs (
+-- Create plan_sources table
+CREATE TABLE cat.plan_sources (
     plan_uuid UUID NOT NULL REFERENCES cat.plans(uuid) ON DELETE CASCADE,
     source_uuid UUID NOT NULL REFERENCES cat.sources(uuid) ON DELETE CASCADE,
     PRIMARY KEY (plan_uuid, source_uuid)
 );
 
--- Create plan_outputs table
-CREATE TABLE cat.plan_outputs (
+-- Create plan_works table
+CREATE TABLE cat.plan_works (
     plan_uuid UUID NOT NULL REFERENCES cat.plans(uuid) ON DELETE CASCADE,
     work_uuid UUID NOT NULL REFERENCES cat.works(uuid) ON DELETE CASCADE,
     PRIMARY KEY (plan_uuid, work_uuid)

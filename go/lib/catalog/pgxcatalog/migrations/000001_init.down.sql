@@ -1,8 +1,8 @@
--- Drop plan_outputs table
-DROP TABLE IF EXISTS cat.plan_outputs;
+-- Drop plan_works table
+DROP TABLE IF EXISTS cat.plan_works;
 
--- Drop plan_inputs table
-DROP TABLE IF EXISTS cat.plan_inputs;
+-- Drop plan_sources table
+DROP TABLE IF EXISTS cat.plan_sources;
 
 -- Drop plans table
 DROP TABLE IF EXISTS cat.plans;
