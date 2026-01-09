@@ -85,6 +85,28 @@ func (dpp *directPlanPatcher) SaveGet() (*catalog.Plan, error) {
 		return nil, err
 	}
 
+	if dpp.fileSourceUUID.Changed() {
+		if err := updatePlanSources(
+			dpp.Ctx,
+			txn,
+			dpp.PlanUUID,
+			body,
+		); err != nil {
+			return nil, err
+		}
+	}
+
+	if dpp.workUUID.Changed() {
+		if err := updatePlanWorks(
+			dpp.Ctx,
+			txn,
+			dpp.PlanUUID,
+			body,
+		); err != nil {
+			return nil, err
+		}
+	}
+
 	if err := txn.Commit(dpp.Ctx); err != nil {
 		return nil, fmt.Errorf("%w: failed to commit transaction for patching plan %s: %w", catalog.ErrInternal, dpp.PlanUUID, err)
 	}
