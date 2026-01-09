@@ -113,6 +113,28 @@ func (crpp *chapterRangePlanPatcher) SaveGet() (*catalog.Plan, error) {
 		return nil, err
 	}
 
+	if crpp.fileSourceUUID.Changed() {
+		if err := updatePlanSources(
+			crpp.Ctx,
+			txn,
+			crpp.PlanUUID,
+			body,
+		); err != nil {
+			return nil, err
+		}
+	}
+
+	if crpp.workUUID.Changed() {
+		if err := updatePlanWorks(
+			crpp.Ctx,
+			txn,
+			crpp.PlanUUID,
+			body,
+		); err != nil {
+			return nil, err
+		}
+	}
+
 	if err := txn.Commit(crpp.Ctx); err != nil {
 		return nil, fmt.Errorf("%w: failed to commit transaction for patching plan %s: %w", catalog.ErrInternal, crpp.PlanUUID, err)
 	}
