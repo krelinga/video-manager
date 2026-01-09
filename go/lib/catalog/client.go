@@ -9,10 +9,19 @@ import (
 )
 
 var (
+	// ErrNotFound indicates that the requested entity does not exist.
 	ErrNotFound = errors.New("not found")
+
+	// ErrEntity indicates that the provided entity is invalid.
 	ErrEntity   = errors.New("invalid entity")
+
+	// ErrType indicates a type mismatch for the entity.
 	ErrType     = errors.New("entity already exists with different type")
+
+	// ErrParams indicates that the provided parameters are invalid.
 	ErrParams   = errors.New("invalid parameters")
+
+	// ErrInternal indicates an internal server error.
 	ErrInternal = errors.New("internal server error")
 )
 
