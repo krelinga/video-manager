@@ -153,6 +153,10 @@ type DiscSourcePatcher interface {
 
 type Plan struct {
 	UUID uuid.UUID
+
+	// Exactly one of the following should be set.
+	DirectPlan       *DirectPlan
+	ChapterRangePlan *ChapterRangePlan
 }
 
 type DirectPlan struct {
