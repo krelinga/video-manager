@@ -120,10 +120,6 @@ func (c *Client) ListPlans(ctx context.Context, params *catalog.ListPlansParams)
 		return nil, nil, err
 	}
 
-	if err := rows.Err(); err != nil {
-		return nil, nil, fmt.Errorf("%w: error iterating plan rows: %w", catalog.ErrInternal, err)
-	}
-
 	// Check if there are more pages
 	var nextPageToken catalog.PageToken
 	if len(plans) > pageSize {
