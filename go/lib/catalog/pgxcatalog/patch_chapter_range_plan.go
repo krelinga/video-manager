@@ -39,7 +39,7 @@ func (c *Client) PatchChapterRangePlan(ctx context.Context, planUUID uuid.UUID, 
 		return nil, err
 	}
 	publicBody := body.ToPublic()
-	patch.ValPatch(publicBody)
+	patch.Patch(publicBody)
 	body.FromPublic(publicBody)
 
 	if err := update(
@@ -81,6 +81,6 @@ func (c *Client) PatchChapterRangePlan(ctx context.Context, planUUID uuid.UUID, 
 
 	return &catalog.Plan{
 		UUID:             planUUID,
-		ChapterRangePlan: body.ToPublic(),
+		ChapterRangePlan: catalog.NewOptPtr(body.ToPublic()),
 	}, nil
 }

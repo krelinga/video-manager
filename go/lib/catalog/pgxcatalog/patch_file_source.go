@@ -39,7 +39,7 @@ func (c *Client) PatchFileSource(ctx context.Context, sourceUUID uuid.UUID, patc
 		return nil, err
 	}
 	publicBody := body.ToPublic()
-	patch.PtrPatch(&publicBody)
+	patch.Patch(publicBody)
 	body.FromPublic(publicBody)
 
 	if err := update(
@@ -59,6 +59,6 @@ func (c *Client) PatchFileSource(ctx context.Context, sourceUUID uuid.UUID, patc
 
 	return &catalog.Source{
 		UUID:       sourceUUID,
-		FileSource: body.ToPublic(),
+		FileSource: catalog.NewOptPtr(body.ToPublic()),
 	}, nil
 }

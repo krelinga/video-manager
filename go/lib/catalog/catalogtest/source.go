@@ -75,8 +75,8 @@ func RunSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Clien
 				if err != nil {
 					t.Fatalf("GetSource failed: %v", err)
 				}
-				if source.FileSource.Path != "/path/to/different.mkv" {
-					t.Fatalf("expected path '/path/to/different.mkv', got %q", source.FileSource.Path)
+				if source.FileSource.Get().Path != "/path/to/different.mkv" {
+					t.Fatalf("expected path '/path/to/different.mkv', got %q", source.FileSource.Get().Path)
 				}
 			},
 		},
@@ -88,7 +88,7 @@ func RunSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Clien
 				discSourceUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000002")
 				fileSource := &catalog.FileSource{
 					Path:           "/path/to/file.mkv",
-					DiscSourceUUID: &discSourceUUID,
+					DiscSourceUUID: catalog.NewOpt(discSourceUUID),
 				}
 
 				_, err := client.PutFileSource(ctx, fileSourceUUID, fileSource)
@@ -106,11 +106,11 @@ func RunSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Clien
 				if source.FileSource == nil {
 					t.Fatal("expected FileSource to be set")
 				}
-				if source.FileSource.Path != "/path/to/file.mkv" {
-					t.Fatalf("expected path '/path/to/file.mkv', got %q", source.FileSource.Path)
+				if source.FileSource.Get().Path != "/path/to/file.mkv" {
+					t.Fatalf("expected path '/path/to/file.mkv', got %q", source.FileSource.Get().Path)
 				}
-				if source.FileSource.DiscSourceUUID == nil || *source.FileSource.DiscSourceUUID != discSourceUUID {
-					t.Fatalf("expected DiscSourceUUID %s, got %v", discSourceUUID, source.FileSource.DiscSourceUUID)
+				if source.FileSource.Get().DiscSourceUUID == nil || source.FileSource.Get().DiscSourceUUID.Get() != discSourceUUID {
+					t.Fatalf("expected DiscSourceUUID %s, got %v", discSourceUUID, source.FileSource.Get().DiscSourceUUID)
 				}
 			},
 		},
@@ -129,14 +129,14 @@ func RunSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Clien
 				}
 
 				patch := &catalog.FileSourcePatch{
-					Path: catalog.Set("/new/path.mkv"),
+					Path: catalog.NewPatch("/new/path.mkv"),
 				}
 				source, err := client.PatchFileSource(ctx, fileSourceUUID, patch)
 				if err != nil {
 					t.Fatalf("PatchFileSource failed: %v", err)
 				}
-				if source.FileSource.Path != "/new/path.mkv" {
-					t.Fatalf("expected path '/new/path.mkv', got %q", source.FileSource.Path)
+				if source.FileSource.Get().Path != "/new/path.mkv" {
+					t.Fatalf("expected path '/new/path.mkv', got %q", source.FileSource.Get().Path)
 				}
 			},
 		},
@@ -156,14 +156,14 @@ func RunSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Clien
 
 				discSourceUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000002")
 				patch := &catalog.FileSourcePatch{
-					DiscSourceUUID: catalog.Set(discSourceUUID),
+					DiscSourceUUID: catalog.NewPatch(catalog.NewOpt(discSourceUUID)),
 				}
 				source, err := client.PatchFileSource(ctx, fileSourceUUID, patch)
 				if err != nil {
 					t.Fatalf("PatchFileSource failed: %v", err)
 				}
-				if source.FileSource.DiscSourceUUID == nil || *source.FileSource.DiscSourceUUID != discSourceUUID {
-					t.Fatalf("expected DiscSourceUUID %s, got %v", discSourceUUID, source.FileSource.DiscSourceUUID)
+				if source.FileSource.Get().DiscSourceUUID == nil || source.FileSource.Get().DiscSourceUUID.Get() != discSourceUUID {
+					t.Fatalf("expected DiscSourceUUID %s, got %v", discSourceUUID, source.FileSource.Get().DiscSourceUUID)
 				}
 			},
 		},
@@ -175,7 +175,7 @@ func RunSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Clien
 				discSourceUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000002")
 				fileSource := &catalog.FileSource{
 					Path:           "/path/to/file.mkv",
-					DiscSourceUUID: &discSourceUUID,
+					DiscSourceUUID: catalog.NewOpt(discSourceUUID),
 				}
 
 				_, err := client.PutFileSource(ctx, fileSourceUUID, fileSource)
@@ -184,14 +184,14 @@ func RunSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Clien
 				}
 
 				patch := &catalog.FileSourcePatch{
-					DiscSourceUUID: catalog.Clear[uuid.UUID](),
+					DiscSourceUUID: catalog.NewPatch(catalog.NilOpt[uuid.UUID]()),
 				}
 				source, err := client.PatchFileSource(ctx, fileSourceUUID, patch)
 				if err != nil {
 					t.Fatalf("PatchFileSource failed: %v", err)
 				}
-				if source.FileSource.DiscSourceUUID != nil {
-					t.Fatalf("expected DiscSourceUUID to be nil, got %v", source.FileSource.DiscSourceUUID)
+				if source.FileSource.Get().DiscSourceUUID != nil {
+					t.Fatalf("expected DiscSourceUUID to be nil, got %v", source.FileSource.Get().DiscSourceUUID)
 				}
 			},
 		},
@@ -202,7 +202,7 @@ func RunSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Clien
 				fileSourceUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
 
 				patch := &catalog.FileSourcePatch{
-					Path: catalog.Set("/test/path.mkv"),
+					Path: catalog.NewPatch("/test/path.mkv"),
 				}
 				_, err := client.PatchFileSource(ctx, fileSourceUUID, patch)
 				if !errors.Is(err, catalog.ErrNotFound) {
@@ -267,8 +267,8 @@ func RunSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Clien
 				if err != nil {
 					t.Fatalf("GetSource failed: %v", err)
 				}
-				if source.DiscSource.OriginalName != "Different Disc" {
-					t.Fatalf("expected OriginalName 'Different Disc', got %q", source.DiscSource.OriginalName)
+				if source.DiscSource.Get().OriginalName != "Different Disc" {
+					t.Fatalf("expected OriginalName 'Different Disc', got %q", source.DiscSource.Get().OriginalName)
 				}
 			},
 		},
@@ -298,13 +298,13 @@ func RunSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Clien
 				if source.DiscSource == nil {
 					t.Fatal("expected DiscSource to be set")
 				}
-				if source.DiscSource.OriginalName != "Movie Disc" {
-					t.Fatalf("expected OriginalName 'Movie Disc', got %q", source.DiscSource.OriginalName)
+				if source.DiscSource.Get().OriginalName != "Movie Disc" {
+					t.Fatalf("expected OriginalName 'Movie Disc', got %q", source.DiscSource.Get().OriginalName)
 				}
-				if source.DiscSource.Path != "/mnt/disc" {
-					t.Fatalf("expected path '/mnt/disc', got %q", source.DiscSource.Path)
+				if source.DiscSource.Get().Path != "/mnt/disc" {
+					t.Fatalf("expected path '/mnt/disc', got %q", source.DiscSource.Get().Path)
 				}
-				if !source.DiscSource.AllFilesAdded {
+				if !source.DiscSource.Get().AllFilesAdded {
 					t.Fatal("expected AllFilesAdded to be true")
 				}
 			},
@@ -326,14 +326,14 @@ func RunSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Clien
 				}
 
 				patch := &catalog.DiscSourcePatch{
-					OriginalName: catalog.Set("Updated Disc"),
+					OriginalName: catalog.NewPatch("Updated Disc"),
 				}
 				source, err := client.PatchDiscSource(ctx, discSourceUUID, patch)
 				if err != nil {
 					t.Fatalf("PatchDiscSource failed: %v", err)
 				}
-				if source.DiscSource.OriginalName != "Updated Disc" {
-					t.Fatalf("expected OriginalName 'Updated Disc', got %q", source.DiscSource.OriginalName)
+				if source.DiscSource.Get().OriginalName != "Updated Disc" {
+					t.Fatalf("expected OriginalName 'Updated Disc', got %q", source.DiscSource.Get().OriginalName)
 				}
 			},
 		},
@@ -354,14 +354,14 @@ func RunSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Clien
 				}
 
 				patch := &catalog.DiscSourcePatch{
-					Path: catalog.Set("/mnt/disc2"),
+					Path: catalog.NewPatch("/mnt/disc2"),
 				}
 				source, err := client.PatchDiscSource(ctx, discSourceUUID, patch)
 				if err != nil {
 					t.Fatalf("PatchDiscSource failed: %v", err)
 				}
-				if source.DiscSource.Path != "/mnt/disc2" {
-					t.Fatalf("expected path '/mnt/disc2', got %q", source.DiscSource.Path)
+				if source.DiscSource.Get().Path != "/mnt/disc2" {
+					t.Fatalf("expected path '/mnt/disc2', got %q", source.DiscSource.Get().Path)
 				}
 			},
 		},
@@ -382,13 +382,13 @@ func RunSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Clien
 				}
 
 				patch := &catalog.DiscSourcePatch{
-					AllFilesAdded: catalog.Set(true),
+					AllFilesAdded: catalog.NewPatch(true),
 				}
 				source, err := client.PatchDiscSource(ctx, discSourceUUID, patch)
 				if err != nil {
 					t.Fatalf("PatchDiscSource failed: %v", err)
 				}
-				if !source.DiscSource.AllFilesAdded {
+				if !source.DiscSource.Get().AllFilesAdded {
 					t.Fatal("expected AllFilesAdded to be true")
 				}
 			},
@@ -400,7 +400,7 @@ func RunSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Clien
 				discSourceUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000002")
 
 				patch := &catalog.DiscSourcePatch{
-					OriginalName: catalog.Set("Test"),
+					OriginalName: catalog.NewPatch("Test"),
 				}
 				_, err := client.PatchDiscSource(ctx, discSourceUUID, patch)
 				if !errors.Is(err, catalog.ErrNotFound) {
@@ -427,7 +427,7 @@ func RunSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Clien
 
 				// Try to patch it as a FileSource
 				patch := &catalog.FileSourcePatch{
-					Path: catalog.Set("/test/path.mkv"),
+					Path: catalog.NewPatch("/test/path.mkv"),
 				}
 				_, err = client.PatchFileSource(ctx, conflictUUID, patch)
 				if !errors.Is(err, catalog.ErrKind) {
@@ -452,7 +452,7 @@ func RunSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Clien
 
 				// Try to patch it as a DiscSource
 				patch := &catalog.DiscSourcePatch{
-					OriginalName: catalog.Set("Test"),
+					OriginalName: catalog.NewPatch("Test"),
 				}
 				_, err = client.PatchDiscSource(ctx, conflictUUID, patch)
 				if !errors.Is(err, catalog.ErrKind) {

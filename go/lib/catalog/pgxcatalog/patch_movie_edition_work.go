@@ -39,7 +39,7 @@ func (c *Client) PatchMovieEditionWork(ctx context.Context, workUUID uuid.UUID, 
 		return nil, err
 	}
 	publicBody := body.ToPublic()
-	patch.PtrPatch(&publicBody)
+	patch.Patch(publicBody)
 	body.FromPublic(publicBody)
 
 	if err := update(
@@ -59,6 +59,6 @@ func (c *Client) PatchMovieEditionWork(ctx context.Context, workUUID uuid.UUID, 
 
 	return &catalog.Work{
 		UUID:             workUUID,
-		MovieEditionWork: body.ToPublic(),
+		MovieEditionWork: catalog.NewOptPtr(body.ToPublic()),
 	}, nil
 }

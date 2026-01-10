@@ -1,91 +1,77 @@
 package catalog
 
-// A patch operation that can be applied to values.
-type ValPatcher[T any] interface {
-	ValPatch(*T)
-}
-
-// A patch operation that can be applied to pointers.
-// If the pointer is nil but the patch needs to set a value, then
-// the patch will allocate a new value.
-type PtrPatcher[T any] interface {
-	PtrPatch(**T)
-}
-
-// A patch operation that can be applied to both values and pointers.
+// Patcher is an interface for types that can apply a patch to a value of type T.
 type Patcher[T any] interface {
-	ValPatcher[T]
-	PtrPatcher[T]
+	Patch(*T)
 }
 
-type patchClearPtr[T any] struct{}
+// Opt is a generic optional value type.
+// If the Opt is nil, it represents the absence of a value.
+// If the Opt is non-nil, it contains a function that returns a value of type T.
+type Opt[T any] func() T
 
-func (p patchClearPtr[T]) PtrPatch(ptr **T) {
-	*ptr = nil
-}
-
-// Clear returns a patch operation that sets a pointer to nil.
-func Clear[T any]() PtrPatcher[T] {
-	return patchClearPtr[T]{}
-}
-
-type patchSetVal[T any] struct {
-	val T
-}
-
-func (p *patchSetVal[T]) ValPatch(ptr *T) {
-	*ptr = p.val
-}
-
-func (p *patchSetVal[T]) PtrPatch(ptr **T) {
-	*ptr = &p.val
-}
-
-// Set returns a patch operation that sets a value or pointer to the given value.
-func Set[T any](val T) Patcher[T] {
-	return &patchSetVal[T]{val: val}
-}
-
-// Optional is a wrapper type that indicates whether a value is present or not.
-// It is always in one of two states:
-// - Nil: indicates that the value is not present.
-// - Non-nil: indicates that the value is present, and holds the value.
-// The zero value of Optional is the Nil state.
-type Optional[T any] struct {
-	val *T
-}
-
-// IsNil returns true if the Optional is in the Nil state.
-func (o Optional[T]) IsNil() bool {
-	return o.val == nil
-}
-
-// Get returns the value and a boolean indicating whether the value is present.
-// If the value is Nil, the zero value of T is returned.
-func (o Optional[T]) Get() (T, bool) {
-	if o.val == nil {
-		var zero T
-		return zero, false
+// Get retrieves the value contained in the Opt.
+// It panics if the Opt is nil.
+// This is syntactic sugar, allowing users to write o.Get() instead of o().
+func (o Opt[T]) Get() T {
+	if o == nil {
+		panic("attempted to get value from nil Opt")
 	}
-	return *o.val, true
+	return o()
 }
 
-// Must returns the value, panicking if the value is Nil.
-func (o Optional[T]) Must() T {
-	if o.val == nil {
-		panic("Optional: value is Nil")
-	}
-	return *o.val
-}
-
-// Ptr returns a pointer to the value, or nil if the value is Nil.
-// The returned pointer is a copy of the internal pointer, so modifying
-// the returned pointer does not affect the Optional (except for reference types).
-func (o Optional[T]) Ptr() *T {
-	if o.val == nil {
+// Ptr retrieves a pointer to the value contained in the Opt.
+// It returns nil if the Opt is nil.
+// The returned pointer is independent of the Opt, meaning changes to the Opt do not affect the pointer and vice versa.
+func (o Opt[T]) Ptr() *T {
+	if o == nil {
 		return nil
 	}
-	newVal := new(T)
-	*newVal = *o.val
-	return newVal
+	val := o()
+	return &val
+}
+
+// NewOpt creates a new Opt containing the given value.
+func NewOpt[T any](val T) Opt[T] {
+	return func() T {
+		return val
+	}
+}
+
+// NilOpt creates a nil Opt, representing the absence of a value.
+// It is also possible to use 'nil' directly where an Opt is expected.
+func NilOpt[T any]() Opt[T] {
+	return nil
+}
+
+// NewOptPtr creates a new Opt from a pointer to a value.
+// If the pointer is nil, it returns a nil Opt.
+// If the pointer is non-nil, it returns an Opt containing the value pointed to.
+// The returned Opt is independent of the input pointer, meaning changes to the pointer do not affect the Opt and vice versa.
+func NewOptPtr[T any](val *T) Opt[T] {
+	if val == nil {
+		return NilOpt[T]()
+	}
+	return NewOpt(*val)
+}
+
+// Patch is a function that applies modifications to a value of type T.
+// A Patch can be nil, in which case it does nothing.
+// Patch implements the Patcher interface.
+type Patch[T any] func(*T)
+
+// Patch applies the patch to the given pointer to T.
+// If the Patch is nil, it does nothing.
+func (p Patch[T]) Patch(ptr *T) {
+	if p == nil {
+		return
+	}
+	p(ptr)
+}
+
+// NewPatch creates a new Patch that, when called, updates the patched value to be equal to the given value.
+func NewPatch[T any](val T) Patch[T] {
+	return func(ptr *T) {
+		*ptr = val
+	}
 }

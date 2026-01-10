@@ -38,14 +38,14 @@ type Work struct {
 	UUID uuid.UUID
 
 	// Exactly one of the following should be set.
-	MovieWork        *MovieWork
-	MovieEditionWork *MovieEditionWork
+	MovieWork        Opt[MovieWork]
+	MovieEditionWork Opt[MovieEditionWork]
 }
 
 type MovieWork struct {
 	Title       string
-	ReleaseYear *int
-	TMDbID      *int
+	ReleaseYear Opt[int]
+	TMDbID      Opt[int]
 }
 
 func (mw *MovieWork) Validate() error {
@@ -56,30 +56,22 @@ func (mw *MovieWork) Validate() error {
 }
 
 type MovieWorkPatch struct {
-	Title       ValPatcher[string]
-	ReleaseYear PtrPatcher[int]
-	TMDbID      PtrPatcher[int]
+	Title       Patcher[string]
+	ReleaseYear Patcher[Opt[int]]
+	TMDbID      Patcher[Opt[int]]
 }
 
-// ValPatch applies the patch to the given MovieWork.
-func (mwp *MovieWorkPatch) ValPatch(mw *MovieWork) {
+// Patch applies the patch to the given MovieWork.
+func (mwp *MovieWorkPatch) Patch(mw *MovieWork) {
 	if mwp.Title != nil {
-		mwp.Title.ValPatch(&mw.Title)
+		mwp.Title.Patch(&mw.Title)
 	}
 	if mwp.ReleaseYear != nil {
-		mwp.ReleaseYear.PtrPatch(&mw.ReleaseYear)
+		mwp.ReleaseYear.Patch(&mw.ReleaseYear)
 	}
 	if mwp.TMDbID != nil {
-		mwp.TMDbID.PtrPatch(&mw.TMDbID)
+		mwp.TMDbID.Patch(&mw.TMDbID)
 	}
-}
-
-// PtrPatch applies the patch to the given MovieWork pointer, allocating it if nil.
-func (mwp *MovieWorkPatch) PtrPatch(mw **MovieWork) {
-	if *mw == nil {
-		*mw = &MovieWork{}
-	}
-	mwp.ValPatch(*mw)
 }
 
 type MovieEditionWork struct {
@@ -95,39 +87,31 @@ func (mew *MovieEditionWork) Validate() error {
 }
 
 type MovieEditionWorkPatch struct {
-	Type          ValPatcher[string]
-	MovieWorkUUID ValPatcher[uuid.UUID]
+	Type          Patcher[string]
+	MovieWorkUUID Patcher[uuid.UUID]
 }
 
-// ValPatch applies the patch to the given MovieEditionWork.
-func (mewp *MovieEditionWorkPatch) ValPatch(mew *MovieEditionWork) {
+// Patch applies the patch to the given MovieEditionWork.
+func (mewp *MovieEditionWorkPatch) Patch(mew *MovieEditionWork) {
 	if mewp.Type != nil {
-		mewp.Type.ValPatch(&mew.Type)
+		mewp.Type.Patch(&mew.Type)
 	}
 	if mewp.MovieWorkUUID != nil {
-		mewp.MovieWorkUUID.ValPatch(&mew.MovieWorkUUID)
+		mewp.MovieWorkUUID.Patch(&mew.MovieWorkUUID)
 	}
-}
-
-// PtrPatch applies the patch to the given MovieEditionWork pointer, allocating it if nil.
-func (mewp *MovieEditionWorkPatch) PtrPatch(mew **MovieEditionWork) {
-	if *mew == nil {
-		*mew = &MovieEditionWork{}
-	}
-	mewp.ValPatch(*mew)
 }
 
 type Source struct {
 	UUID uuid.UUID
 
 	// Exactly one of the following should be set.
-	FileSource *FileSource
-	DiscSource *DiscSource
+	FileSource Opt[FileSource]
+	DiscSource Opt[DiscSource]
 }
 
 type FileSource struct {
 	Path           string
-	DiscSourceUUID *uuid.UUID
+	DiscSourceUUID Opt[uuid.UUID]
 }
 
 func (fs *FileSource) Validate() error {
@@ -138,26 +122,18 @@ func (fs *FileSource) Validate() error {
 }
 
 type FileSourcePatch struct {
-	Path           ValPatcher[string]
-	DiscSourceUUID PtrPatcher[uuid.UUID]
+	Path           Patcher[string]
+	DiscSourceUUID Patcher[Opt[uuid.UUID]]
 }
 
-// ValPatch applies the patch to the given FileSource.
-func (fsp *FileSourcePatch) ValPatch(fs *FileSource) {
+// Patch applies the patch to the given FileSource.
+func (fsp *FileSourcePatch) Patch(fs *FileSource) {
 	if fsp.Path != nil {
-		fsp.Path.ValPatch(&fs.Path)
+		fsp.Path.Patch(&fs.Path)
 	}
 	if fsp.DiscSourceUUID != nil {
-		fsp.DiscSourceUUID.PtrPatch(&fs.DiscSourceUUID)
+		fsp.DiscSourceUUID.Patch(&fs.DiscSourceUUID)
 	}
-}
-
-// PtrPatch applies the patch to the given FileSource pointer, allocating it if nil.
-func (fsp *FileSourcePatch) PtrPatch(fs **FileSource) {
-	if *fs == nil {
-		*fs = &FileSource{}
-	}
-	fsp.ValPatch(*fs)
 }
 
 type DiscSource struct {
@@ -177,38 +153,30 @@ func (ds *DiscSource) Validate() error {
 }
 
 type DiscSourcePatch struct {
-	OriginalName  ValPatcher[string]
-	Path          ValPatcher[string]
-	AllFilesAdded ValPatcher[bool]
+	OriginalName  Patcher[string]
+	Path          Patcher[string]
+	AllFilesAdded Patcher[bool]
 }
 
-// ValPatch applies the patch to the given DiscSource.
-func (dsp *DiscSourcePatch) ValPatch(ds *DiscSource) {
+// Patch applies the patch to the given DiscSource.
+func (dsp *DiscSourcePatch) Patch(ds *DiscSource) {
 	if dsp.OriginalName != nil {
-		dsp.OriginalName.ValPatch(&ds.OriginalName)
+		dsp.OriginalName.Patch(&ds.OriginalName)
 	}
 	if dsp.Path != nil {
-		dsp.Path.ValPatch(&ds.Path)
+		dsp.Path.Patch(&ds.Path)
 	}
 	if dsp.AllFilesAdded != nil {
-		dsp.AllFilesAdded.ValPatch(&ds.AllFilesAdded)
+		dsp.AllFilesAdded.Patch(&ds.AllFilesAdded)
 	}
-}
-
-// PtrPatch applies the patch to the given DiscSource pointer, allocating it if nil.
-func (dsp *DiscSourcePatch) PtrPatch(ds **DiscSource) {
-	if *ds == nil {
-		*ds = &DiscSource{}
-	}
-	dsp.ValPatch(*ds)
 }
 
 type Plan struct {
 	UUID uuid.UUID
 
 	// Exactly one of the following should be set.
-	DirectPlan       *DirectPlan
-	ChapterRangePlan *ChapterRangePlan
+	DirectPlan       Opt[DirectPlan]
+	ChapterRangePlan Opt[ChapterRangePlan]
 }
 
 type DirectPlan struct {
@@ -221,26 +189,18 @@ func (dp *DirectPlan) Validate() error {
 }
 
 type DirectPlanPatch struct {
-	FileSourceUUID ValPatcher[uuid.UUID]
-	WorkUUID       ValPatcher[uuid.UUID]
+	FileSourceUUID Patcher[uuid.UUID]
+	WorkUUID       Patcher[uuid.UUID]
 }
 
-// ValPatch applies the patch to the given DirectPlan.
-func (dpp *DirectPlanPatch) ValPatch(dp *DirectPlan) {
+// Patch applies the patch to the given DirectPlan.
+func (dpp *DirectPlanPatch) Patch(dp *DirectPlan) {
 	if dpp.FileSourceUUID != nil {
-		dpp.FileSourceUUID.ValPatch(&dp.FileSourceUUID)
+		dpp.FileSourceUUID.Patch(&dp.FileSourceUUID)
 	}
 	if dpp.WorkUUID != nil {
-		dpp.WorkUUID.ValPatch(&dp.WorkUUID)
+		dpp.WorkUUID.Patch(&dp.WorkUUID)
 	}
-}
-
-// PtrPatch applies the patch to the given DirectPlan pointer, allocating it if nil.
-func (dpp *DirectPlanPatch) PtrPatch(dp **DirectPlan) {
-	if *dp == nil {
-		*dp = &DirectPlan{}
-	}
-	dpp.ValPatch(*dp)
 }
 
 type ChapterRangePlan struct {
@@ -248,8 +208,8 @@ type ChapterRangePlan struct {
 	WorkUUID       uuid.UUID
 
 	// If nil, means from start / to end.
-	StartChapter *int
-	EndChapter   *int
+	StartChapter Opt[int]
+	EndChapter   Opt[int]
 }
 
 func (crp *ChapterRangePlan) Validate() error {
@@ -257,44 +217,36 @@ func (crp *ChapterRangePlan) Validate() error {
 }
 
 type ChapterRangePlanPatch struct {
-	FileSourceUUID ValPatcher[uuid.UUID]
-	WorkUUID       ValPatcher[uuid.UUID]
-	StartChapter   PtrPatcher[int]
-	EndChapter     PtrPatcher[int]
+	FileSourceUUID Patcher[uuid.UUID]
+	WorkUUID       Patcher[uuid.UUID]
+	StartChapter   Patcher[Opt[int]]
+	EndChapter     Patcher[Opt[int]]
 }
 
-// ValPatch applies the patch to the given ChapterRangePlan.
-func (crpp *ChapterRangePlanPatch) ValPatch(crp *ChapterRangePlan) {
+// Patch applies the patch to the given ChapterRangePlan.
+func (crpp *ChapterRangePlanPatch) Patch(crp *ChapterRangePlan) {
 	if crpp.FileSourceUUID != nil {
-		crpp.FileSourceUUID.ValPatch(&crp.FileSourceUUID)
+		crpp.FileSourceUUID.Patch(&crp.FileSourceUUID)
 	}
 	if crpp.WorkUUID != nil {
-		crpp.WorkUUID.ValPatch(&crp.WorkUUID)
+		crpp.WorkUUID.Patch(&crp.WorkUUID)
 	}
 	if crpp.StartChapter != nil {
-		crpp.StartChapter.PtrPatch(&crp.StartChapter)
+		crpp.StartChapter.Patch(&crp.StartChapter)
 	}
 	if crpp.EndChapter != nil {
-		crpp.EndChapter.PtrPatch(&crp.EndChapter)
+		crpp.EndChapter.Patch(&crp.EndChapter)
 	}
-}
-
-// PtrPatch applies the patch to the given ChapterRangePlan pointer, allocating it if nil.
-func (crpp *ChapterRangePlanPatch) PtrPatch(crp **ChapterRangePlan) {
-	if *crp == nil {
-		*crp = &ChapterRangePlan{}
-	}
-	crpp.ValPatch(*crp)
 }
 
 type PageToken []byte
 
 type ListPlansParams struct {
 	// If set, only return plans for the given Work UUID.
-	WorkUUID *uuid.UUID
+	WorkUUID Opt[uuid.UUID]
 
 	// If set, only return plans for the given Source UUID.
-	SourceUUID *uuid.UUID
+	SourceUUID Opt[uuid.UUID]
 
 	// If set, return results after this page token.
 	PageToken PageToken

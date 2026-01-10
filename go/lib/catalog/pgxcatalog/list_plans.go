@@ -72,13 +72,13 @@ func (c *Client) ListPlans(ctx context.Context, params *catalog.ListPlansParams)
 
 	if params.SourceUUID != nil {
 		query += ` AND ps.source_uuid = $` + fmt.Sprintf("%d", argPos)
-		args = append(args, *params.SourceUUID)
+		args = append(args, params.SourceUUID.Get())
 		argPos++
 	}
 
 	if params.WorkUUID != nil {
 		query += ` AND pw.work_uuid = $` + fmt.Sprintf("%d", argPos)
-		args = append(args, *params.WorkUUID)
+		args = append(args, params.WorkUUID.Get())
 		argPos++
 	}
 

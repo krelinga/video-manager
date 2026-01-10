@@ -37,13 +37,13 @@ func (c *Client) GetSource(ctx context.Context, sourceUUID uuid.UUID) (*catalog.
 		if err := body.UnmarshalJSON(rawBody); err != nil {
 			return nil, err
 		}
-		source.FileSource = body.ToPublic()
+		source.FileSource = catalog.NewOptPtr(body.ToPublic())
 	case sourceKindDisc:
 		var body discSourceJSON
 		if err := body.UnmarshalJSON(rawBody); err != nil {
 			return nil, err
 		}
-		source.DiscSource = body.ToPublic()
+		source.DiscSource = catalog.NewOptPtr(body.ToPublic())
 	default:
 		return nil, fmt.Errorf("%w: unhandled source kind %q for source %s", catalog.ErrInternal, kind, sourceUUID)
 	}

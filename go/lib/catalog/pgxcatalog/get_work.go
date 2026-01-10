@@ -37,13 +37,13 @@ func (c *Client) GetWork(ctx context.Context, workUUID uuid.UUID) (*catalog.Work
 		if err := body.UnmarshalJSON(rawBody); err != nil {
 			return nil, err
 		}
-		work.MovieWork = body.ToPublic()
+		work.MovieWork = catalog.NewOptPtr(body.ToPublic())
 	case workKindMovieEdition:
 		var body movieEditionWorkJSON
 		if err := body.UnmarshalJSON(rawBody); err != nil {
 			return nil, err
 		}
-		work.MovieEditionWork = body.ToPublic()
+		work.MovieEditionWork = catalog.NewOptPtr(body.ToPublic())
 	default:
 		return nil, fmt.Errorf("%w: unhandled work kind %q for work %s", catalog.ErrInternal, kind, workUUID)
 	}

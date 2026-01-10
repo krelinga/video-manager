@@ -25,8 +25,8 @@ func (mw *movieWorkJSON) ToPublic() *catalog.MovieWork {
 	}
 	return &catalog.MovieWork{
 		Title:       mw.Title,
-		ReleaseYear: mw.ReleaseYear,
-		TMDbID:      mw.TMDbID,
+		ReleaseYear: catalog.NewOptPtr(mw.ReleaseYear),
+		TMDbID:      catalog.NewOptPtr(mw.TMDbID),
 	}
 }
 
@@ -35,8 +35,8 @@ func (mw *movieWorkJSON) FromPublic(in *catalog.MovieWork) {
 		return
 	}
 	mw.Title = in.Title
-	mw.ReleaseYear = in.ReleaseYear
-	mw.TMDbID = in.TMDbID
+	mw.ReleaseYear = in.ReleaseYear.Ptr()
+	mw.TMDbID = in.TMDbID.Ptr()
 }
 
 func (mv *movieWorkJSON) UnmarshalJSON(data []byte) error {
@@ -119,7 +119,7 @@ func (fs *fileSourceJSON) ToPublic() *catalog.FileSource {
 	}
 	return &catalog.FileSource{
 		Path:           fs.Path,
-		DiscSourceUUID: fs.DiscSourceUUID,
+		DiscSourceUUID: catalog.NewOptPtr(fs.DiscSourceUUID),
 	}
 }
 
@@ -128,7 +128,7 @@ func (fs *fileSourceJSON) FromPublic(in *catalog.FileSource) {
 		return
 	}
 	fs.Path = in.Path
-	fs.DiscSourceUUID = in.DiscSourceUUID
+	fs.DiscSourceUUID = in.DiscSourceUUID.Ptr()
 }
 
 func (fs *fileSourceJSON) UnmarshalJSON(data []byte) error {
@@ -271,8 +271,8 @@ func (crp *chapterRangePlanJSON) ToPublic() *catalog.ChapterRangePlan {
 	return &catalog.ChapterRangePlan{
 		FileSourceUUID: crp.FileSourceUUID,
 		WorkUUID:       crp.WorkUUID,
-		StartChapter:   crp.StartChapter,
-		EndChapter:     crp.EndChapter,
+		StartChapter:   catalog.NewOptPtr(crp.StartChapter),
+		EndChapter:     catalog.NewOptPtr(crp.EndChapter),
 	}
 }
 
@@ -282,8 +282,8 @@ func (crp *chapterRangePlanJSON) FromPublic(in *catalog.ChapterRangePlan) {
 	}
 	crp.FileSourceUUID = in.FileSourceUUID
 	crp.WorkUUID = in.WorkUUID
-	crp.StartChapter = in.StartChapter
-	crp.EndChapter = in.EndChapter
+	crp.StartChapter = in.StartChapter.Ptr()
+	crp.EndChapter = in.EndChapter.Ptr()
 }
 
 func (crp *chapterRangePlanJSON) UnmarshalJSON(data []byte) error {

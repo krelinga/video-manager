@@ -38,7 +38,7 @@ func (c *Client) PatchDirectPlan(ctx context.Context, planUUID uuid.UUID, patch 
 		return nil, err
 	}
 	publicBody := body.ToPublic()
-	patch.ValPatch(publicBody)
+	patch.Patch(publicBody)
 	body.FromPublic(publicBody)
 
 	if err := update(
@@ -80,6 +80,6 @@ func (c *Client) PatchDirectPlan(ctx context.Context, planUUID uuid.UUID, patch 
 
 	return &catalog.Plan{
 		UUID:       planUUID,
-		DirectPlan: body.ToPublic(),
+		DirectPlan: catalog.NewOptPtr(body.ToPublic()),
 	}, nil
 }

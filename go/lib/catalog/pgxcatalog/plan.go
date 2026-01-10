@@ -90,13 +90,13 @@ func toPublicPlan(planUUID uuid.UUID, kind planKind, rawBody []byte) (*catalog.P
 		if err := body.UnmarshalJSON(rawBody); err != nil {
 			return nil, err
 		}
-		plan.DirectPlan = body.ToPublic()
+		plan.DirectPlan = catalog.NewOptPtr(body.ToPublic())
 	case planKindChapterRange:
 		var body chapterRangePlanJSON
 		if err := body.UnmarshalJSON(rawBody); err != nil {
 			return nil, err
 		}
-		plan.ChapterRangePlan = body.ToPublic()
+		plan.ChapterRangePlan = catalog.NewOptPtr(body.ToPublic())
 	default:
 		return nil, fmt.Errorf("%w: unhandled plan kind %q for plan %s", catalog.ErrInternal, kind, planUUID)
 	}
