@@ -5,10 +5,20 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/krelinga/video-manager/go/lib/catalog"
+	"github.com/krelinga/video-manager/go/lib/catalog/catalogtest"
 	"github.com/krelinga/video-manager/go/lib/catalog/pgxcatalog"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
+
+func TestPgxCatalog(t *testing.T) {
+	connStr := runPostgres(t)
+	reset := func(t *testing.T) catalog.Client {
+		t.Helper()
+		return clearAndConnect(t, connStr)
+	}
+	catalogtest.RunAllTests(t, reset)
+}
 
 // runPostgres is a helper function that starts a Postgres instance for testing and returns the connection string.
 // The instance will be torn down when the test ends.
@@ -23,7 +33,7 @@ func runPostgres(t *testing.T) string {
 		dbName = "videocatalog"
 		dbUser = "videocataloguser"
 		dbPass = "videocatalogpass"
- 	)
+	)
 
 	// Start Postgres container
 	postgresReq := testcontainers.ContainerRequest{
@@ -34,7 +44,7 @@ func runPostgres(t *testing.T) string {
 			"POSTGRES_USER":     dbUser,
 			"POSTGRES_PASSWORD": dbPass,
 		},
-		WaitingFor:     wait.ForLog("database system is ready to accept connections").WithOccurrence(2),
+		WaitingFor: wait.ForLog("database system is ready to accept connections").WithOccurrence(2),
 	}
 	postgresContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: postgresReq,

@@ -8,7 +8,7 @@ import (
 	"github.com/krelinga/video-manager/go/lib/catalog"
 )
 
-func RunSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Client) {
+func runSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Client) {
 	tests := []struct {
 		name string
 		test func(t *testing.T, client catalog.Client)
