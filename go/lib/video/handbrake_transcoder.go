@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"os/exec"
 	"strings"
 )
@@ -25,6 +26,7 @@ func (t *HandbrakeTranscoder) Transcode(
 		"--json",
 		"--preset", "Fast 1080p30",
 	)
+	log.Printf("Running HandBrake command: %s", cmd)
 
 	// Get stdout pipe for JSON progress output (--json flag outputs to stdout)
 	stdout, err := cmd.StdoutPipe()
