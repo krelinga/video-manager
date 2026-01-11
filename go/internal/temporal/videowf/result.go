@@ -48,3 +48,11 @@ func (r *Result[T]) UnmarshalJSON(data []byte) error {
 	r.Ready = true
 	return nil
 }
+
+func transformResult[A any, B any](input Result[A], transform func(A) B) Result[B] {
+	return Result[B]{
+		Value: transform(input.Value),
+		Error: input.Error,
+		Ready: input.Ready,
+	}
+}

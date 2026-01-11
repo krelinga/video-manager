@@ -42,11 +42,9 @@ type discFile struct {
 func (df *discFile) ToState() *DiscFileState {
 	return &DiscFileState{
 		Basename: df.Basename,
-		DurationSeconds: Result[float64]{
-			Value: df.Duration.Value.Seconds(),
-			Error: df.Duration.Error,
-			Ready: df.Duration.Ready,
-		},
+		DurationSeconds: transformResult(df.Duration, func(d time.Duration) float64 {
+			return d.Seconds()
+		}),
 	}
 }
 
