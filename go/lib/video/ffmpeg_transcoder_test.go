@@ -30,6 +30,7 @@ func TestFfmpegTranscoder(t *testing.T) {
 			if progress < lastProgress {
 				t.Errorf("progress went backwards: %f -> %f", lastProgress, progress)
 			}
+			t.Logf("Progress: %s %.2f%%", pass, progress*100)
 			lastProgress = progress
 		}
 

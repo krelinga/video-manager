@@ -3,12 +3,12 @@ package video
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os/exec"
 	"regexp"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -62,13 +62,10 @@ func (t *FfmpegTranscoder) Transcode(
 		return fmt.Errorf("failed to start ffmpeg: %w", err)
 	}
 
-	var stderrBuf strings.Builder
 	scanner := bufio.NewScanner(stderrPipe)
 	go func() {
 		for scanner.Scan() {
 			line := scanner.Text()
-			stderrBuf.WriteString(line)
-			stderrBuf.WriteString("\n")
 			if progressValue, ok := parseFfmpegProgress(line, totalDuration); ok {
 				if progress != nil {
 					progress("", progressValue)
@@ -78,10 +75,11 @@ func (t *FfmpegTranscoder) Transcode(
 	}()
 
 	if err := cmd.Wait(); err != nil {
-		if stderrOutput := stderrBuf.String(); stderrOutput != "" {
-			return fmt.Errorf("ffmpeg failed: %w: %s", err, stderrOutput)
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			return fmt.Errorf("error running ffmpeg, stderr: %s", string(exitErr.Stderr))
 		}
-		return fmt.Errorf("ffmpeg failed: %w", err)
+		return fmt.Errorf("error running ffmpeg: %w", err)
 	}
 
 	// Consume any remaining output

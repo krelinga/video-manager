@@ -4,9 +4,9 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
-	"log"
 	"os/exec"
 	"strings"
 )
@@ -26,18 +26,11 @@ func (t *HandbrakeTranscoder) Transcode(
 		"--json",
 		"--preset", "Fast 1080p30",
 	)
-	log.Printf("Running HandBrake command: %s", cmd)
 
 	// Get stdout pipe for JSON progress output (--json flag outputs to stdout)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return fmt.Errorf("failed to get stdout pipe: %w", err)
-	}
-
-	// Get stderr pipe to capture error messages
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return fmt.Errorf("failed to get stderr pipe: %w", err)
 	}
 
 	if err := cmd.Start(); err != nil {
@@ -88,17 +81,15 @@ func (t *HandbrakeTranscoder) Transcode(
 		}
 	}
 
-	// Capture stderr for error reporting
-	stderrOutput, _ := io.ReadAll(stderr)
-
 	// Consume any remaining stdout
 	io.Copy(io.Discard, stdout)
 
 	if err := cmd.Wait(); err != nil {
-		if len(stderrOutput) > 0 {
-			return fmt.Errorf("HandBrake failed: %w: %s", err, stderrOutput)
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			return fmt.Errorf("error running HandBrake, stderr: %s", string(exitErr.Stderr))
 		}
-		return fmt.Errorf("HandBrake failed: %w", err)
+		return fmt.Errorf("error running HandBrake: %w", err)
 	}
 
 	return nil
