@@ -14,6 +14,10 @@ func (p Paths) DiscPath(discUUID uuid.UUID) string {
 	return filepath.Join(p.RootDirPath, "discs", discUUID.String())
 }
 
+func (p Paths) FileInDiscPath(discUUID uuid.UUID, basename string) string {
+	return filepath.Join(p.DiscPath(discUUID), basename)
+}
+
 func (p Paths) InboxPath(basename string) string {
 	return filepath.Join(p.RootDirPath, "inbox", basename)
 }

@@ -1,7 +1,9 @@
 package videowf
 
 import (
+	"cmp"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -15,7 +17,14 @@ type DiscParams struct {
 }
 
 type DiscState struct {
-	MovedFromInbox bool `json:"moved_from_inbox"`
+	MovedFromInbox         bool             `json:"moved_from_inbox"`
+	Files                  []*DiscFileState `json:"files,omitempty"`
+	FinishedFileInspection bool             `json:"finished_file_inspection"`
+}
+
+type DiscFileState struct {
+	Basename        string          `json:"basename"`
+	DurationSeconds Result[float64] `json:"duration_seconds,omitzero"`
 }
 
 const DiscQueryState = "state"
@@ -25,9 +34,25 @@ func Disc(ctx workflow.Context, params *DiscParams) error {
 	return d.Main(ctx, params)
 }
 
+type discFile struct {
+	Basename string
+	Duration Result[time.Duration]
+}
+
+func (df *discFile) ToState() *DiscFileState {
+	return &DiscFileState{
+		Basename: df.Basename,
+		DurationSeconds: Result[float64]{
+			Value: df.Duration.Value.Seconds(),
+			Error: df.Duration.Error,
+			Ready: df.Duration.Ready,
+		},
+	}
+}
+
 type discWorkflow struct {
 	// Commonly-needed parameters.
-	discUUID 	uuid.UUID
+	discUUID uuid.UUID
 
 	// Call this function to cancel file inspection.
 	// This can be useful if the user concludes all their interactions
@@ -35,7 +60,9 @@ type discWorkflow struct {
 	cancelFileInspection workflow.CancelFunc
 
 	// State of the workflow.
-	movedFromInbox bool
+	movedFromInbox         bool
+	files                  map[string]*discFile
+	finishedFileInspection bool
 }
 
 func (d *discWorkflow) Main(ctx workflow.Context, params *DiscParams) error {
@@ -54,6 +81,17 @@ func (d *discWorkflow) setupQueryHandler(ctx workflow.Context) error {
 	handler := func() (*DiscState, error) {
 		return &DiscState{
 			MovedFromInbox: d.movedFromInbox,
+			Files: func() []*DiscFileState {
+				var states []*DiscFileState
+				for _, file := range d.files {
+					states = append(states, file.ToState())
+				}
+				slices.SortFunc(states, func(a, b *DiscFileState) int {
+					return cmp.Compare(a.Basename, b.Basename)
+				})
+				return states
+			}(),
+			FinishedFileInspection: d.finishedFileInspection,
 		}, nil
 	}
 	if err := workflow.SetQueryHandler(ctx, DiscQueryState, handler); err != nil {
@@ -93,8 +131,21 @@ func (d *discWorkflow) inspectFiles(ctx workflow.Context) error {
 	if err != nil {
 		return err
 	}
-	_ = videoFiles // TODO: Process discovered video files as needed
 
+	d.files = make(map[string]*discFile)
+	for _, videoBasename := range videoFiles {
+		d.files[videoBasename] = &discFile{Basename: videoBasename}
+	}
+
+	wg := workflow.NewWaitGroup(ctx)
+	for _, fileState := range d.files {
+		wg.Go(ctx, func(ctx workflow.Context) {
+			fileState.Duration.Set(d.getVideoDuration(ctx, fileState.Basename))
+		})
+	}
+	wg.Wait(ctx)
+
+	d.finishedFileInspection = true
 	return nil
 }
 
@@ -105,10 +156,26 @@ func (d *discWorkflow) discoverVideoFilesInDisc(ctx workflow.Context) ([]string,
 	params := &videoact.DiscoverVideoFilesInDiscParams{
 		DiscUUID: d.discUUID,
 	}
-	var result videoact.DiscoverVideoFilesInDiscResult
+	var Result videoact.DiscoverVideoFilesInDiscResult
 	act := &videoact.Basic{}
-	if err := workflow.ExecuteActivity(ctx, act.DiscoverVideoFilesInDisc, params).Get(ctx, &result); err != nil {
+	if err := workflow.ExecuteActivity(ctx, act.DiscoverVideoFilesInDisc, params).Get(ctx, &Result); err != nil {
 		return nil, fmt.Errorf("failed to discover video files in disc: %w", err)
 	}
-	return result.VideoFileBasenames, nil
+	return Result.VideoFileBasenames, nil
+}
+
+func (d *discWorkflow) getVideoDuration(ctx workflow.Context, videoBasename string) (time.Duration, error) {
+	ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
+		StartToCloseTimeout: 10 * time.Second,
+	})
+	params := &videoact.GetVideoDurationParams{
+		DiscUUID:      d.discUUID,
+		VideoBasename: videoBasename,
+	}
+	var Result videoact.GetVideoDurationResult
+	act := &videoact.FastVideo{}
+	if err := workflow.ExecuteActivity(ctx, act.GetVideoDuration, params).Get(ctx, &Result); err != nil {
+		return 0, fmt.Errorf("failed to get video duration for %s: %w", videoBasename, err)
+	}
+	return time.Duration(Result.DurationSeconds * float64(time.Second)), nil
 }
