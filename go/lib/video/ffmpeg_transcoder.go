@@ -13,9 +13,9 @@ import (
 )
 
 // For now this transcoder only works for generating video previews.
-type ffmpegTranscoder struct{}
+type FfmpegTranscoder struct{}
 
-func (t *ffmpegTranscoder) Transcode(
+func (t *FfmpegTranscoder) Transcode(
 	ctx context.Context,
 	inputPath, outputPath string,
 	progress ProgressCallback,

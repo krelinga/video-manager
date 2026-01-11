@@ -31,6 +31,6 @@ const (
 type Transcoders map[Profile]Transcoder
 
 var AllTranscoders = Transcoders{
-	ProfilePreview: &ffmpegTranscoder{},
-	Profile1080p30: &handbrakeTranscoder{},
+	ProfilePreview: &FfmpegTranscoder{},
+	Profile1080p30: &HandbrakeTranscoder{},
 }

@@ -11,9 +11,9 @@ import (
 )
 
 // For now this transcoder only outputs standard 1080p30 videos using HandBrake's "Fast 1080p30" preset.
-type handbrakeTranscoder struct{}
+type HandbrakeTranscoder struct{}
 
-func (t *handbrakeTranscoder) Transcode(
+func (t *HandbrakeTranscoder) Transcode(
 	ctx context.Context,
 	inputPath, outputPath string,
 	progress ProgressCallback,
