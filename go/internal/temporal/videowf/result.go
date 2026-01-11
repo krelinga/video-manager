@@ -5,7 +5,7 @@ import "encoding/json"
 type Result[T any] struct {
 	Value T
 	Error string
-	Ready bool
+	ready bool
 }
 
 func (r *Result[T]) Set(value T, err error) {
@@ -18,15 +18,15 @@ func (r *Result[T]) Set(value T, err error) {
 	} else {
 		r.Error = ""
 	}
-	r.Ready = true
+	r.ready = true
 }
 
 func (r *Result[T]) IsZero() bool {
-	return !r.Ready
+	return !r.ready
 }
 
 func (r *Result[T]) MarshalJSON() ([]byte, error) {
-	if !r.Ready {
+	if !r.ready {
 		panic("cannot marshal zero Result")
 	}
 	if r.Error != "" {
@@ -52,7 +52,7 @@ func (r *Result[T]) UnmarshalJSON(data []byte) error {
 	}
 	r.Value = a.Value
 	r.Error = a.Error
-	r.Ready = true
+	r.ready = true
 	return nil
 }
 
@@ -60,6 +60,6 @@ func transformResult[A any, B any](input Result[A], transform func(A) B) Result[
 	return Result[B]{
 		Value: transform(input.Value),
 		Error: input.Error,
-		Ready: input.Ready,
+		ready: input.ready,
 	}
 }
