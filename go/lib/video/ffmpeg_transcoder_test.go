@@ -21,16 +21,18 @@ func TestFfmpegTranscoder(t *testing.T) {
 		outputPath := filepath.Join(tmpDir, "output_preview.mkv")
 
 		progressCalled := false
+		var lastPass string
 		var lastProgress float64
 		progressCallback := func(pass string, progress float64) {
 			progressCalled = true
 			if progress < 0 || progress > 1.0 {
 				t.Errorf("progress out of range: %f", progress)
 			}
-			if progress < lastProgress {
-				t.Errorf("progress went backwards: %f -> %f", lastProgress, progress)
+			if pass == lastPass && progress < lastProgress {
+				t.Errorf("progress went backwards for pass %s: %f -> %f", pass, lastProgress, progress)
 			}
 			t.Logf("Progress: %s %.2f%%", pass, progress*100)
+			lastPass = pass
 			lastProgress = progress
 		}
 

@@ -19,6 +19,10 @@ func (t *HandbrakeTranscoder) Transcode(
 	inputPath, outputPath string,
 	progress ProgressCallback,
 ) error {
+	if progress != nil {
+		progress("", 0.0)
+	}
+
 	cmd := exec.CommandContext(ctx,
 		"HandBrakeCLI",
 		"-i", inputPath,
@@ -75,7 +79,8 @@ func (t *HandbrakeTranscoder) Transcode(
 				}
 
 				if hbProgress.State == "WORKING" && progress != nil {
-					progress("", hbProgress.Working.Progress)
+					pass := fmt.Sprintf("pass %d of %d", hbProgress.Working.Pass, hbProgress.Working.PassCount)
+					progress(pass, hbProgress.Working.Progress)
 				}
 			}
 		}
@@ -92,6 +97,10 @@ func (t *HandbrakeTranscoder) Transcode(
 		return fmt.Errorf("error running HandBrake: %w", err)
 	}
 
+	if progress != nil {
+		progress("", 1.0)
+	}
+
 	return nil
 }
 
@@ -99,6 +108,8 @@ func (t *HandbrakeTranscoder) Transcode(
 type handbrakeProgress struct {
 	State   string `json:"State"`
 	Working struct {
-		Progress float64 `json:"Progress"`
+		Pass      int     `json:"Pass"`
+		PassCount int     `json:"PassCount"`
+		Progress  float64 `json:"Progress"`
 	} `json:"Working"`
 }

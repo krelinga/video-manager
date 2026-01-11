@@ -20,9 +20,19 @@ func (t *FfmpegTranscoder) Transcode(
 	inputPath, outputPath string,
 	progress ProgressCallback,
 ) error {
+	if progress != nil {
+		progress("", 0.0)
+		progress("get_resolution", 0.0)
+	}
+
 	width, height, err := GetResolution(ctx, inputPath)
 	if err != nil {
 		return fmt.Errorf("failed to get video resolution: %w", err)
+	}
+
+	if progress != nil {
+		progress("get_resolution", 1.0)
+		progress("get_duration", 0.0)
 	}
 
 	var totalDuration time.Duration
@@ -31,6 +41,11 @@ func (t *FfmpegTranscoder) Transcode(
 		if err != nil {
 			return err
 		}
+	}
+
+	if progress != nil {
+		progress("get_duration", 1.0)
+		progress("transcode", 0.0)
 	}
 
 	targetHeight := 240
@@ -68,7 +83,7 @@ func (t *FfmpegTranscoder) Transcode(
 			line := scanner.Text()
 			if progressValue, ok := parseFfmpegProgress(line, totalDuration); ok {
 				if progress != nil {
-					progress("", progressValue)
+					progress("transcode", progressValue)
 				}
 			}
 		}
@@ -84,6 +99,10 @@ func (t *FfmpegTranscoder) Transcode(
 
 	// Consume any remaining output
 	io.Copy(io.Discard, stderrPipe)
+
+	if progress != nil {
+		progress("", 1.0)
+	}
 
 	return nil
 }
