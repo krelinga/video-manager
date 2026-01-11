@@ -4,13 +4,20 @@ import "encoding/json"
 
 type Result[T any] struct {
 	Value T
-	Error error
+	Error string
 	Ready bool
 }
 
 func (r *Result[T]) Set(value T, err error) {
 	r.Value = value
-	r.Error = err
+	if err != nil {
+		r.Error = err.Error()
+		if r.Error == "" {
+			r.Error = "<empty error>"
+		}
+	} else {
+		r.Error = ""
+	}
 	r.Ready = true
 }
 
@@ -22,15 +29,11 @@ func (r *Result[T]) MarshalJSON() ([]byte, error) {
 	if !r.Ready {
 		panic("cannot marshal zero Result")
 	}
-	if r.Error != nil {
-		errorString := r.Error.Error()
-		if errorString == "" {
-			errorString = "<empty error>"
-		}
+	if r.Error != "" {
 		type errorOnly struct {
 			Error string `json:"error"`
 		}
-		return json.Marshal(&errorOnly{Error: errorString})
+		return json.Marshal(&errorOnly{Error: r.Error})
 	}
 	type valueOnly struct {
 		Value T `json:"value"`
@@ -39,12 +42,16 @@ func (r *Result[T]) MarshalJSON() ([]byte, error) {
 }
 
 func (r *Result[T]) UnmarshalJSON(data []byte) error {
-	type alias Result[T]
+	type alias struct {
+		Value T     `json:"value"`
+		Error string `json:"error"`
+	}
 	var a alias
 	if err := json.Unmarshal(data, &a); err != nil {
 		return err
 	}
-	*r = Result[T](a)
+	r.Value = a.Value
+	r.Error = a.Error
 	r.Ready = true
 	return nil
 }
