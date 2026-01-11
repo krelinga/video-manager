@@ -17,9 +17,9 @@ type DiscParams struct {
 }
 
 type DiscState struct {
-	MovedFromInbox         bool             `json:"moved_from_inbox"`
-	Files                  []*DiscFileState `json:"files,omitempty"`
-	FinishedFileInspection bool             `json:"finished_file_inspection"`
+	MovedFromInbox         bool                     `json:"moved_from_inbox"`
+	Files                  Result[[]*DiscFileState] `json:"files,omitzero"`
+	FinishedFileInspection bool                     `json:"finished_file_inspection"`
 }
 
 type DiscFileState struct {
@@ -59,7 +59,7 @@ type discWorkflow struct {
 
 	// State of the workflow.
 	movedFromInbox         bool
-	files                  map[string]*discFile
+	files                  Result[map[string]*discFile]
 	finishedFileInspection bool
 }
 
@@ -79,16 +79,16 @@ func (d *discWorkflow) setupQueryHandler(ctx workflow.Context) error {
 	handler := func() (*DiscState, error) {
 		return &DiscState{
 			MovedFromInbox: d.movedFromInbox,
-			Files: func() []*DiscFileState {
+			Files: transformResult(d.files, func(m map[string]*discFile) []*DiscFileState {
 				var states []*DiscFileState
-				for _, file := range d.files {
+				for _, file := range m {
 					states = append(states, file.ToState())
 				}
 				slices.SortFunc(states, func(a, b *DiscFileState) int {
 					return cmp.Compare(a.Basename, b.Basename)
 				})
 				return states
-			}(),
+			}),
 			FinishedFileInspection: d.finishedFileInspection,
 		}, nil
 	}
@@ -117,37 +117,23 @@ func (d *discWorkflow) moveFromInbox(ctx workflow.Context, inboxBasename string)
 func (d *discWorkflow) startFileInspection(ctx workflow.Context) {
 	ctx, d.cancelFileInspection = workflow.WithCancel(ctx)
 	workflow.Go(ctx, func(ctx workflow.Context) {
-		if err := d.inspectFiles(ctx); err != nil {
-			// TODO: Handle error appropriately, e.g., set workflow status, send notification, etc.
-			workflow.GetLogger(ctx).Error("failed to inspect files in disc", "error", err)
+		if d.files.Set(d.discoverVideoFilesInDisc(ctx)) != nil {
+			return
 		}
+
+		wg := workflow.NewWaitGroup(ctx)
+		for _, fileState := range d.files.Value {
+			wg.Go(ctx, func(ctx workflow.Context) {
+				fileState.Duration.Set(d.getVideoDuration(ctx, fileState.Basename))
+			})
+		}
+		wg.Wait(ctx)
+
+		d.finishedFileInspection = true
 	})
 }
 
-func (d *discWorkflow) inspectFiles(ctx workflow.Context) error {
-	videoFiles, err := d.discoverVideoFilesInDisc(ctx)
-	if err != nil {
-		return err
-	}
-
-	d.files = make(map[string]*discFile)
-	for _, videoBasename := range videoFiles {
-		d.files[videoBasename] = &discFile{Basename: videoBasename}
-	}
-
-	wg := workflow.NewWaitGroup(ctx)
-	for _, fileState := range d.files {
-		wg.Go(ctx, func(ctx workflow.Context) {
-			fileState.Duration.Set(d.getVideoDuration(ctx, fileState.Basename))
-		})
-	}
-	wg.Wait(ctx)
-
-	d.finishedFileInspection = true
-	return nil
-}
-
-func (d *discWorkflow) discoverVideoFilesInDisc(ctx workflow.Context) ([]string, error) {
+func (d *discWorkflow) discoverVideoFilesInDisc(ctx workflow.Context) (map[string]*discFile, error) {
 	ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
 		StartToCloseTimeout: 10 * time.Second,
 	})
@@ -159,7 +145,11 @@ func (d *discWorkflow) discoverVideoFilesInDisc(ctx workflow.Context) ([]string,
 	if err := workflow.ExecuteActivity(ctx, act.DiscoverVideoFilesInDisc, params).Get(ctx, &Result); err != nil {
 		return nil, fmt.Errorf("failed to discover video files in disc: %w", err)
 	}
-	return Result.VideoFileBasenames, nil
+	out := make(map[string]*discFile)
+	for _, basename := range Result.VideoFileBasenames {
+		out[basename] = &discFile{Basename: basename}
+	}
+	return out, nil
 }
 
 func (d *discWorkflow) getVideoDuration(ctx workflow.Context, videoBasename string) (time.Duration, error) {

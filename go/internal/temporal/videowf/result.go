@@ -8,7 +8,7 @@ type Result[T any] struct {
 	ready bool
 }
 
-func (r *Result[T]) Set(value T, err error) {
+func (r *Result[T]) Set(value T, err error) error {
 	r.Value = value
 	if err != nil {
 		r.Error = err.Error()
@@ -19,6 +19,7 @@ func (r *Result[T]) Set(value T, err error) {
 		r.Error = ""
 	}
 	r.ready = true
+	return err
 }
 
 func (r *Result[T]) IsZero() bool {
