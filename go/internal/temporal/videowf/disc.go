@@ -26,16 +26,27 @@ func Disc(ctx workflow.Context, params *DiscParams) error {
 }
 
 type discWorkflow struct {
+	// Commonly-needed parameters.
+	discUUID 	uuid.UUID
+
+	// Call this function to cancel file inspection.
+	// This can be useful if the user concludes all their interactions
+	// with the workflow before file inspection is complete.
+	cancelFileInspection workflow.CancelFunc
+
+	// State of the workflow.
 	movedFromInbox bool
 }
 
 func (d *discWorkflow) Main(ctx workflow.Context, params *DiscParams) error {
+	d.discUUID = params.DiscUUID
 	if err := d.setupQueryHandler(ctx); err != nil {
 		return err
 	}
-	if err := d.moveFromInbox(ctx, params.DiscUUID, params.InboxBasename); err != nil {
+	if err := d.moveFromInbox(ctx, params.InboxBasename); err != nil {
 		return err
 	}
+	d.startFileInspection(ctx)
 	return nil
 }
 
@@ -51,12 +62,12 @@ func (d *discWorkflow) setupQueryHandler(ctx workflow.Context) error {
 	return nil
 }
 
-func (d *discWorkflow) moveFromInbox(ctx workflow.Context, discUUID uuid.UUID, inboxBasename string) error {
+func (d *discWorkflow) moveFromInbox(ctx workflow.Context, inboxBasename string) error {
 	ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
 		StartToCloseTimeout: 10 * time.Second,
 	})
 	params := &videoact.MoveDiscFromInboxParams{
-		DiscUUID:      discUUID,
+		DiscUUID:      d.discUUID,
 		InboxBasename: inboxBasename,
 	}
 	act := &videoact.Basic{}
@@ -65,4 +76,39 @@ func (d *discWorkflow) moveFromInbox(ctx workflow.Context, discUUID uuid.UUID, i
 	}
 	d.movedFromInbox = true
 	return nil
+}
+
+func (d *discWorkflow) startFileInspection(ctx workflow.Context) {
+	ctx, d.cancelFileInspection = workflow.WithCancel(ctx)
+	workflow.Go(ctx, func(ctx workflow.Context) {
+		if err := d.inspectFiles(ctx); err != nil {
+			// TODO: Handle error appropriately, e.g., set workflow status, send notification, etc.
+			workflow.GetLogger(ctx).Error("failed to inspect files in disc", "error", err)
+		}
+	})
+}
+
+func (d *discWorkflow) inspectFiles(ctx workflow.Context) error {
+	videoFiles, err := d.discoverVideoFilesInDisc(ctx)
+	if err != nil {
+		return err
+	}
+	_ = videoFiles // TODO: Process discovered video files as needed
+
+	return nil
+}
+
+func (d *discWorkflow) discoverVideoFilesInDisc(ctx workflow.Context) ([]string, error) {
+	ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
+		StartToCloseTimeout: 10 * time.Second,
+	})
+	params := &videoact.DiscoverVideoFilesInDiscParams{
+		DiscUUID: d.discUUID,
+	}
+	var result videoact.DiscoverVideoFilesInDiscResult
+	act := &videoact.Basic{}
+	if err := workflow.ExecuteActivity(ctx, act.DiscoverVideoFilesInDisc, params).Get(ctx, &result); err != nil {
+		return nil, fmt.Errorf("failed to discover video files in disc: %w", err)
+	}
+	return result.VideoFileBasenames, nil
 }
