@@ -24,6 +24,9 @@ type DiscState struct {
 
 	// The status of the most-recent file discovery operation.
 	FileDiscoveryTask Task `json:"file_discovery_task,omitzero"`
+
+	// The status of the most-recent junk file deletion operation.
+	DeleteJunkFilesTask Task `json:"delete_junk_files_task,omitzero"`
 }
 
 // GetFileByBasename returns the DiscFileState with the given basename, or nil if not found.
@@ -83,6 +86,9 @@ type DiscFileState struct {
 
 	// The user-assigned kind of this file.
 	Kind DiscFileKind `json:"kind,omitempty"`
+
+	// The status of the task to delete this file.
+	DeletionTask Task `json:"deletion_task,omitzero"`
 }
 
 const DiscQueryState = "state"
@@ -158,9 +164,57 @@ func (d *discWorkflow) setupUpdateHandler(ctx workflow.Context) error {
 		file.Kind = req.Kind
 		return &d.state, nil
 	}
-	return workflow.SetUpdateHandlerWithOptions(ctx, DiscUpdateSetFileKind, handleSetFileKind, workflow.UpdateHandlerOptions{
+	err := workflow.SetUpdateHandlerWithOptions(ctx, DiscUpdateSetFileKind, handleSetFileKind, workflow.UpdateHandlerOptions{
 		Validator: validateSetFileKind,
 	})
+	if err != nil {
+		return fmt.Errorf("failed to set update handler for %s: %w", DiscUpdateSetFileKind, err)
+	}
+
+	validateDeleteJunkFiles := func(ctx workflow.Context) error {
+		if d.state.DeleteJunkFilesTask.Status == TaskStatusPending {
+			return fmt.Errorf("delete junk files task is already running")
+		}
+		return nil
+	}
+
+	handleDeleteJunkFiles := func(ctx workflow.Context) (*DiscState, error) {
+		d.state.DeleteJunkFilesTask.MarkPending()
+		workflow.Go(ctx, func(ctx workflow.Context) {
+			ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
+				StartToCloseTimeout: 10 * time.Second,
+			})
+			wg := workflow.NewWaitGroup(ctx)
+			for _, file := range d.state.Files {
+				if file.Kind == DiscFileKindJunk && !file.BeenDeleted {
+					wg.Go(ctx, func(workflow.Context) {
+						file.DeletionTask.MarkPending()
+						req := &videoact.DeleteDiscFileRequest{
+							DiscUUID:         d.discUUID,
+							BasenameToDelete: file.Basename,
+						}
+						act := &videoact.Basic{}
+						if err := workflow.ExecuteActivity(ctx, act.DeleteDiscFile, req).Get(ctx, nil); err != nil {
+							err = fmt.Errorf("failed to delete junk file %s: %w", file.Basename, err)
+							file.DeletionTask.MarkFailed(err)
+						}
+						file.DeletionTask.MarkDone()
+					})
+				}
+			}
+			wg.Wait(ctx)
+			d.state.DeleteJunkFilesTask.MarkDone()
+		})
+		return &d.state, nil
+	}
+
+	err = workflow.SetUpdateHandlerWithOptions(ctx, DiscUpdateDeleteJunkFiles, handleDeleteJunkFiles, workflow.UpdateHandlerOptions{
+		Validator: validateDeleteJunkFiles,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to set update handler for %s: %w", DiscUpdateDeleteJunkFiles, err)
+	}
+	return nil
 }
 
 func (d *discWorkflow) moveFromInbox(ctx workflow.Context, inboxBasename string) (ok bool) {
