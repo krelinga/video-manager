@@ -18,13 +18,13 @@ type DiscParams struct {
 
 type DiscState struct {
 	MovedFromInbox         bool                     `json:"moved_from_inbox"`
-	Files                  Result[[]*DiscFileState] `json:"files,omitzero"`
+	Files                  []*DiscFileState         `json:"files,omitempty"`
 	FinishedFileInspection bool                     `json:"finished_file_inspection"`
 }
 
 type DiscFileState struct {
 	Basename        string          `json:"basename"`
-	DurationSeconds Result[float64] `json:"duration_seconds,omitzero"`
+	DurationSeconds float64         `json:"duration_seconds,omitzero"`
 }
 
 const DiscQueryState = "state"
@@ -36,15 +36,13 @@ func Disc(ctx workflow.Context, params *DiscParams) error {
 
 type discFile struct {
 	Basename string
-	Duration Result[time.Duration]
+	Duration time.Duration
 }
 
 func (df *discFile) ToState() *DiscFileState {
 	return &DiscFileState{
 		Basename: df.Basename,
-		DurationSeconds: transformResult(df.Duration, func(d time.Duration) float64 {
-			return d.Seconds()
-		}),
+		DurationSeconds: df.Duration.Seconds(),
 	}
 }
 
@@ -59,7 +57,7 @@ type discWorkflow struct {
 
 	// State of the workflow.
 	movedFromInbox         bool
-	files                  Result[map[string]*discFile]
+	files                  map[string]*discFile
 	finishedFileInspection bool
 }
 
@@ -79,16 +77,16 @@ func (d *discWorkflow) setupQueryHandler(ctx workflow.Context) error {
 	handler := func() (*DiscState, error) {
 		return &DiscState{
 			MovedFromInbox: d.movedFromInbox,
-			Files: transformResult(d.files, func(m map[string]*discFile) []*DiscFileState {
+			Files: func() []*DiscFileState {
 				var states []*DiscFileState
-				for _, file := range m {
+				for _, file := range d.files {
 					states = append(states, file.ToState())
 				}
 				slices.SortFunc(states, func(a, b *DiscFileState) int {
 					return cmp.Compare(a.Basename, b.Basename)
 				})
 				return states
-			}),
+			}(),
 			FinishedFileInspection: d.finishedFileInspection,
 		}, nil
 	}
@@ -117,14 +115,21 @@ func (d *discWorkflow) moveFromInbox(ctx workflow.Context, inboxBasename string)
 func (d *discWorkflow) startFileInspection(ctx workflow.Context) {
 	ctx, d.cancelFileInspection = workflow.WithCancel(ctx)
 	workflow.Go(ctx, func(ctx workflow.Context) {
-		if d.files.Set(d.discoverVideoFilesInDisc(ctx)) != nil {
+		files, err := d.discoverVideoFilesInDisc(ctx)
+		if err != nil {
 			return
 		}
+		d.files = files
 
 		wg := workflow.NewWaitGroup(ctx)
-		for _, fileState := range d.files.Value {
+		for _, fileState := range d.files {
 			wg.Go(ctx, func(ctx workflow.Context) {
-				fileState.Duration.Set(d.getVideoDuration(ctx, fileState.Basename))
+				dur, err := d.getVideoDuration(ctx, fileState.Basename)
+				if err != nil {
+					// TODO: record this error.
+					return
+				}
+				fileState.Duration = dur
 			})
 		}
 		wg.Wait(ctx)
