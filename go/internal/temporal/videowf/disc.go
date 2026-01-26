@@ -50,6 +50,24 @@ func (ds *DiscState) UpsertFileByBasename(basename string) *DiscFileState {
 	return file
 }
 
+type DiscFileKind string
+
+const (
+	DiscFileKindNil   DiscFileKind = ""
+	DiscFileKindExtra DiscFileKind = "extra"
+	DiscFileKindMain  DiscFileKind = "main"
+	DiscFileKindJunk  DiscFileKind = "junk"
+)
+
+func (dfk DiscFileKind) IsValid() bool {
+	switch dfk {
+	case DiscFileKindNil, DiscFileKindExtra, DiscFileKindMain, DiscFileKindJunk:
+		return true
+	default:
+		return false
+	}
+}
+
 type DiscFileState struct {
 	// The basename of the file on disc.  Guaranteed to be unique within the disc.
 	Basename string `json:"basename"`
@@ -62,9 +80,22 @@ type DiscFileState struct {
 
 	// The status of the task to determine the duration of this file.
 	DurationTask Task `json:"duration_task,omitzero"`
+
+	// The user-assigned kind of this file.
+	Kind DiscFileKind `json:"kind,omitempty"`
 }
 
 const DiscQueryState = "state"
+
+const DiscUpdateSetFileKind = "set_file_kind"
+
+type DiscSetFileKindRequest struct {
+	// The basename of the file to update.
+	FileBasename string       `json:"file_basename"`
+
+	// The new kind to assign to the file.
+	Kind         DiscFileKind `json:"kind"`
+}
 
 func Disc(ctx workflow.Context, params *DiscParams) error {
 	d := &discWorkflow{}
@@ -84,6 +115,9 @@ func (d *discWorkflow) Main(ctx workflow.Context, params *DiscParams) error {
 	if err := d.setupQueryHandler(ctx); err != nil {
 		return err
 	}
+	if err := d.setupUpdateHandler(ctx); err != nil {
+		return err
+	}
 	if !d.moveFromInbox(ctx, params.InboxBasename) {
 		return nil
 	}
@@ -101,6 +135,30 @@ func (d *discWorkflow) setupQueryHandler(ctx workflow.Context) error {
 		return fmt.Errorf("failed to set query handler: %w", err)
 	}
 	return nil
+}
+
+func (d *discWorkflow) setupUpdateHandler(ctx workflow.Context) error {
+	validate := func(ctx workflow.Context, req *DiscSetFileKindRequest) error {
+		if req.FileBasename == "" {
+			return fmt.Errorf("file_basename is required")
+		}
+		if !req.Kind.IsValid() {
+			return fmt.Errorf("invalid kind: %s", req.Kind)
+		}
+		file := d.state.GetFileByBasename(req.FileBasename)
+		if file == nil {
+			return fmt.Errorf("file not found: %s", req.FileBasename)
+		}
+		return nil
+	}
+	handle := func(ctx workflow.Context, req *DiscSetFileKindRequest) (*DiscState, error) {
+		file := d.state.GetFileByBasename(req.FileBasename)
+		file.Kind = req.Kind
+		return &d.state, nil
+	}
+	return workflow.SetUpdateHandlerWithOptions(ctx, DiscUpdateSetFileKind, handle, workflow.UpdateHandlerOptions{
+		Validator: validate,
+	})
 }
 
 func (d *discWorkflow) moveFromInbox(ctx workflow.Context, inboxBasename string) (ok bool) {
