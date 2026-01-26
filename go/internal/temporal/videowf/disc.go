@@ -91,11 +91,13 @@ const DiscUpdateSetFileKind = "set_file_kind"
 
 type DiscSetFileKindRequest struct {
 	// The basename of the file to update.
-	FileBasename string       `json:"file_basename"`
+	FileBasename string `json:"file_basename"`
 
 	// The new kind to assign to the file.
-	Kind         DiscFileKind `json:"kind"`
+	Kind DiscFileKind `json:"kind"`
 }
+
+const DiscUpdateDeleteJunkFiles = "delete_junk_files"
 
 func Disc(ctx workflow.Context, params *DiscParams) error {
 	d := &discWorkflow{}
@@ -138,7 +140,7 @@ func (d *discWorkflow) setupQueryHandler(ctx workflow.Context) error {
 }
 
 func (d *discWorkflow) setupUpdateHandler(ctx workflow.Context) error {
-	validate := func(ctx workflow.Context, req *DiscSetFileKindRequest) error {
+	validateSetFileKind := func(ctx workflow.Context, req *DiscSetFileKindRequest) error {
 		if req.FileBasename == "" {
 			return fmt.Errorf("file_basename is required")
 		}
@@ -151,13 +153,13 @@ func (d *discWorkflow) setupUpdateHandler(ctx workflow.Context) error {
 		}
 		return nil
 	}
-	handle := func(ctx workflow.Context, req *DiscSetFileKindRequest) (*DiscState, error) {
+	handleSetFileKind := func(ctx workflow.Context, req *DiscSetFileKindRequest) (*DiscState, error) {
 		file := d.state.GetFileByBasename(req.FileBasename)
 		file.Kind = req.Kind
 		return &d.state, nil
 	}
-	return workflow.SetUpdateHandlerWithOptions(ctx, DiscUpdateSetFileKind, handle, workflow.UpdateHandlerOptions{
-		Validator: validate,
+	return workflow.SetUpdateHandlerWithOptions(ctx, DiscUpdateSetFileKind, handleSetFileKind, workflow.UpdateHandlerOptions{
+		Validator: validateSetFileKind,
 	})
 }
 
