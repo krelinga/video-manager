@@ -21,3 +21,11 @@ func (p Paths) FileInDiscPath(discUUID uuid.UUID, basename string) string {
 func (p Paths) InboxPath(basename string) string {
 	return filepath.Join(p.RootDirPath, "inbox", basename)
 }
+
+func (p Paths) DiscPreviewPath(discUUID uuid.UUID) string {
+	return filepath.Join(p.RootDirPath, "disc_previews", p.DiscPath(discUUID))
+}
+
+func (p Paths) FileInDiscPreviewPath(discUUID uuid.UUID, basename string) string {
+	return filepath.Join(p.DiscPreviewPath(discUUID), basename)
+}
