@@ -1,9 +1,7 @@
 package videowf
 
 import (
-	"cmp"
 	"fmt"
-	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -17,14 +15,53 @@ type DiscParams struct {
 }
 
 type DiscState struct {
-	MovedFromInbox         bool                     `json:"moved_from_inbox"`
-	Files                  []*DiscFileState         `json:"files,omitempty"`
-	FinishedFileInspection bool                     `json:"finished_file_inspection"`
+	// A task representing the disc being moved from the inbox.
+	MovedFromInboxTask Task `json:"moved_from_inbox,omitzero"`
+
+	// The latest information about the list of files contained on the disc.
+	// This can be empty if file discovery has not yet completed.
+	Files []*DiscFileState `json:"files,omitempty"`
+
+	// The status of the most-recent file discovery operation.
+	FileDiscoveryTask Task `json:"file_discovery_task,omitzero"`
+}
+
+// GetFileByBasename returns the DiscFileState with the given basename, or nil if not found.
+func (ds *DiscState) GetFileByBasename(basename string) *DiscFileState {
+	for _, file := range ds.Files {
+		if file.Basename == basename {
+			return file
+		}
+	}
+	return nil
+}
+
+// UpsertFileByBasename returns the DiscFileState with the given basename,
+// creating it if it does not already exist.
+func (ds *DiscState) UpsertFileByBasename(basename string) *DiscFileState {
+	file := ds.GetFileByBasename(basename)
+	if file != nil {
+		return file
+	}
+	file = &DiscFileState{
+		Basename: basename,
+	}
+	ds.Files = append(ds.Files, file)
+	return file
 }
 
 type DiscFileState struct {
-	Basename        string          `json:"basename"`
-	DurationSeconds float64         `json:"duration_seconds,omitzero"`
+	// The basename of the file on disc.  Guaranteed to be unique within the disc.
+	Basename string `json:"basename"`
+
+	// True if the file has been deleted since discovery.
+	BeenDeleted bool `json:"been_deleted,omitzero"`
+
+	// Duration of the video file in seconds.  Zero if not yet determined.
+	DurationSeconds float64 `json:"duration_seconds,omitempty"`
+
+	// The status of the task to determine the duration of this file.
+	DurationTask Task `json:"duration_task,omitzero"`
 }
 
 const DiscQueryState = "state"
@@ -34,31 +71,12 @@ func Disc(ctx workflow.Context, params *DiscParams) error {
 	return d.Main(ctx, params)
 }
 
-type discFile struct {
-	Basename string
-	Duration time.Duration
-}
-
-func (df *discFile) ToState() *DiscFileState {
-	return &DiscFileState{
-		Basename: df.Basename,
-		DurationSeconds: df.Duration.Seconds(),
-	}
-}
-
 type discWorkflow struct {
 	// Commonly-needed parameters.
 	discUUID uuid.UUID
 
-	// Call this function to cancel file inspection.
-	// This can be useful if the user concludes all their interactions
-	// with the workflow before file inspection is complete.
-	cancelFileInspection workflow.CancelFunc
-
-	// State of the workflow.
-	movedFromInbox         bool
-	files                  map[string]*discFile
-	finishedFileInspection bool
+	// State variables.
+	state DiscState
 }
 
 func (d *discWorkflow) Main(ctx workflow.Context, params *DiscParams) error {
@@ -66,29 +84,18 @@ func (d *discWorkflow) Main(ctx workflow.Context, params *DiscParams) error {
 	if err := d.setupQueryHandler(ctx); err != nil {
 		return err
 	}
-	if err := d.moveFromInbox(ctx, params.InboxBasename); err != nil {
-		return err
+	if !d.moveFromInbox(ctx, params.InboxBasename) {
+		return nil
 	}
-	d.startFileInspection(ctx)
+	if !d.discoverVideoFilesInDisc(ctx) {
+		return nil
+	}
 	return nil
 }
 
 func (d *discWorkflow) setupQueryHandler(ctx workflow.Context) error {
 	handler := func() (*DiscState, error) {
-		return &DiscState{
-			MovedFromInbox: d.movedFromInbox,
-			Files: func() []*DiscFileState {
-				var states []*DiscFileState
-				for _, file := range d.files {
-					states = append(states, file.ToState())
-				}
-				slices.SortFunc(states, func(a, b *DiscFileState) int {
-					return cmp.Compare(a.Basename, b.Basename)
-				})
-				return states
-			}(),
-			FinishedFileInspection: d.finishedFileInspection,
-		}, nil
+		return &d.state, nil
 	}
 	if err := workflow.SetQueryHandler(ctx, DiscQueryState, handler); err != nil {
 		return fmt.Errorf("failed to set query handler: %w", err)
@@ -96,7 +103,8 @@ func (d *discWorkflow) setupQueryHandler(ctx workflow.Context) error {
 	return nil
 }
 
-func (d *discWorkflow) moveFromInbox(ctx workflow.Context, inboxBasename string) error {
+func (d *discWorkflow) moveFromInbox(ctx workflow.Context, inboxBasename string) (ok bool) {
+	d.state.MovedFromInboxTask.MarkPending()
 	ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
 		StartToCloseTimeout: 10 * time.Second,
 	})
@@ -106,39 +114,26 @@ func (d *discWorkflow) moveFromInbox(ctx workflow.Context, inboxBasename string)
 	}
 	act := &videoact.Basic{}
 	if err := workflow.ExecuteActivity(ctx, act.MoveDiscFromInbox, params).Get(ctx, nil); err != nil {
-		return fmt.Errorf("failed to move disc from inbox: %w", err)
+		err = fmt.Errorf("failed to move disc from inbox: %w", err)
+		d.state.MovedFromInboxTask.MarkFailed(err)
+	} else {
+		d.state.MovedFromInboxTask.MarkDone()
+		ok = true
 	}
-	d.movedFromInbox = true
-	return nil
+	return
 }
 
-func (d *discWorkflow) startFileInspection(ctx workflow.Context) {
-	ctx, d.cancelFileInspection = workflow.WithCancel(ctx)
-	workflow.Go(ctx, func(ctx workflow.Context) {
-		files, err := d.discoverVideoFilesInDisc(ctx)
-		if err != nil {
-			return
-		}
-		d.files = files
-
-		wg := workflow.NewWaitGroup(ctx)
-		for _, fileState := range d.files {
-			wg.Go(ctx, func(ctx workflow.Context) {
-				dur, err := d.getVideoDuration(ctx, fileState.Basename)
-				if err != nil {
-					// TODO: record this error.
-					return
-				}
-				fileState.Duration = dur
-			})
-		}
-		wg.Wait(ctx)
-
-		d.finishedFileInspection = true
-	})
+func (d *discWorkflow) startFileInspection(ctx workflow.Context, file *DiscFileState) {
+	if !file.DurationTask.HasBeenStarted() {
+		workflow.Go(ctx, func(ctx workflow.Context) {
+			d.getVideoDuration(ctx, file)
+		})
+	}
+	// TODO: start thumbnail generation.
 }
 
-func (d *discWorkflow) discoverVideoFilesInDisc(ctx workflow.Context) (map[string]*discFile, error) {
+func (d *discWorkflow) discoverVideoFilesInDisc(ctx workflow.Context) (ok bool) {
+	d.state.FileDiscoveryTask.MarkPending()
 	ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
 		StartToCloseTimeout: 10 * time.Second,
 	})
@@ -148,27 +143,45 @@ func (d *discWorkflow) discoverVideoFilesInDisc(ctx workflow.Context) (map[strin
 	var Result videoact.DiscoverVideoFilesInDiscResult
 	act := &videoact.Basic{}
 	if err := workflow.ExecuteActivity(ctx, act.DiscoverVideoFilesInDisc, params).Get(ctx, &Result); err != nil {
-		return nil, fmt.Errorf("failed to discover video files in disc: %w", err)
+		err = fmt.Errorf("failed to discover video files in disc: %w", err)
+		d.state.FileDiscoveryTask.MarkFailed(err)
+	} else {
+		seenBasenames := make(map[string]bool)
+		for _, basename := range Result.VideoFileBasenames {
+			seenBasenames[basename] = true
+			file := d.state.UpsertFileByBasename(basename)
+			file.BeenDeleted = false
+			d.startFileInspection(ctx, file)
+		}
+		for _, file := range d.state.Files {
+			if !seenBasenames[file.Basename] {
+				file.BeenDeleted = true
+			}
+		}
+		d.state.FileDiscoveryTask.MarkDone()
+		ok = true
 	}
-	out := make(map[string]*discFile)
-	for _, basename := range Result.VideoFileBasenames {
-		out[basename] = &discFile{Basename: basename}
-	}
-	return out, nil
+	return
 }
 
-func (d *discWorkflow) getVideoDuration(ctx workflow.Context, videoBasename string) (time.Duration, error) {
+func (d *discWorkflow) getVideoDuration(ctx workflow.Context, file *DiscFileState) (ok bool) {
+	file.DurationTask.MarkPending()
 	ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
 		StartToCloseTimeout: 10 * time.Second,
 	})
 	params := &videoact.GetVideoDurationParams{
 		DiscUUID:      d.discUUID,
-		VideoBasename: videoBasename,
+		VideoBasename: file.Basename,
 	}
-	var Result videoact.GetVideoDurationResult
+	var result videoact.GetVideoDurationResult
 	act := &videoact.FastVideo{}
-	if err := workflow.ExecuteActivity(ctx, act.GetVideoDuration, params).Get(ctx, &Result); err != nil {
-		return 0, fmt.Errorf("failed to get video duration for %s: %w", videoBasename, err)
+	if err := workflow.ExecuteActivity(ctx, act.GetVideoDuration, params).Get(ctx, &result); err != nil {
+		err = fmt.Errorf("failed to get video duration for %s: %w", file.Basename, err)
+		file.DurationTask.MarkFailed(err)
+	} else {
+		file.DurationSeconds = result.DurationSeconds * float64(time.Second)
+		ok = true
+		file.DurationTask.MarkDone()
 	}
-	return time.Duration(Result.DurationSeconds * float64(time.Second)), nil
+	return
 }
