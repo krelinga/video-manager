@@ -92,6 +92,12 @@ type DiscFileState struct {
 
 	// The status of the task to delete this file.
 	DeletionTask Task `json:"deletion_task,omitzero"`
+
+	// Size of the file in bytes.  Zero if not yet determined.
+	SizeBytes int64 `json:"size_bytes,omitzero"`
+
+	// The status of the task to determine the size of this file.
+	SizeTask Task `json:"size_task,omitzero"`
 }
 
 const DiscQueryState = "state"
@@ -251,7 +257,11 @@ func (d *discWorkflow) startFileInspection(ctx workflow.Context, file *DiscFileS
 			d.generateVideoPreview(ctx, file)
 		})
 	}
-	// TODO: add other per-file tasks here.
+	if !file.SizeTask.HasBeenStarted() {
+		workflow.Go(ctx, func(ctx workflow.Context) {
+			d.getFileSize(ctx, file)
+		})
+	}
 }
 
 func (d *discWorkflow) discoverVideoFilesInDisc(ctx workflow.Context) (ok bool) {
@@ -314,7 +324,7 @@ func (d *discWorkflow) generateVideoPreview(ctx workflow.Context, file *DiscFile
 		StartToCloseTimeout: 20 * time.Minute,
 	})
 	params := &videoact.GenerateDiscFilePreviewParams{
-		DiscUUID:      d.discUUID,
+		DiscUUID: d.discUUID,
 		Basename: file.Basename,
 	}
 	act := &videoact.SlowVideo{}
@@ -324,6 +334,28 @@ func (d *discWorkflow) generateVideoPreview(ctx workflow.Context, file *DiscFile
 	} else {
 		ok = true
 		file.PreviewTask.MarkDone()
+	}
+	return
+}
+
+func (d *discWorkflow) getFileSize(ctx workflow.Context, file *DiscFileState) (ok bool) {
+	file.SizeTask.MarkPending()
+	ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
+		StartToCloseTimeout: 10 * time.Second,
+	})
+	params := &videoact.GetDiscFileSizeParams{
+		DiscUUID: d.discUUID,
+		Basename: file.Basename,
+	}
+	var result videoact.GetDiscFileSizeResult
+	act := &videoact.Basic{}
+	if err := workflow.ExecuteActivity(ctx, act.GetDiscFileSize, params).Get(ctx, &result); err != nil {
+		err = fmt.Errorf("failed to get file size for %s: %w", file.Basename, err)
+		file.SizeTask.MarkFailed(err)
+	} else {
+		file.SizeBytes = result.SizeBytes
+		ok = true
+		file.SizeTask.MarkDone()
 	}
 	return
 }
