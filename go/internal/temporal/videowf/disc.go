@@ -84,6 +84,9 @@ type DiscFileState struct {
 	// The status of the task to determine the duration of this file.
 	DurationTask Task `json:"duration_task,omitzero"`
 
+	// The status of teh task to generate a preview of this file.
+	PreviewTask Task `json:"preview_task,omitzero"`
+
 	// The user-assigned kind of this file.
 	Kind DiscFileKind `json:"kind,omitempty"`
 
@@ -243,7 +246,12 @@ func (d *discWorkflow) startFileInspection(ctx workflow.Context, file *DiscFileS
 			d.getVideoDuration(ctx, file)
 		})
 	}
-	// TODO: start thumbnail generation.
+	if !file.PreviewTask.HasBeenStarted() {
+		workflow.Go(ctx, func(ctx workflow.Context) {
+			d.generateVideoPreview(ctx, file)
+		})
+	}
+	// TODO: add other per-file tasks here.
 }
 
 func (d *discWorkflow) discoverVideoFilesInDisc(ctx workflow.Context) (ok bool) {
@@ -296,6 +304,26 @@ func (d *discWorkflow) getVideoDuration(ctx workflow.Context, file *DiscFileStat
 		file.DurationSeconds = result.DurationSeconds * float64(time.Second)
 		ok = true
 		file.DurationTask.MarkDone()
+	}
+	return
+}
+
+func (d *discWorkflow) generateVideoPreview(ctx workflow.Context, file *DiscFileState) (ok bool) {
+	file.PreviewTask.MarkPending()
+	ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
+		StartToCloseTimeout: 20 * time.Minute,
+	})
+	params := &videoact.GenerateDiscFilePreviewParams{
+		DiscUUID:      d.discUUID,
+		Basename: file.Basename,
+	}
+	act := &videoact.SlowVideo{}
+	if err := workflow.ExecuteActivity(ctx, act.GenerateDiscFilePreview, params).Get(ctx, nil); err != nil {
+		err = fmt.Errorf("failed to generate video preview for %s: %w", file.Basename, err)
+		file.PreviewTask.MarkFailed(err)
+	} else {
+		ok = true
+		file.PreviewTask.MarkDone()
 	}
 	return
 }
