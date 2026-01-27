@@ -18,6 +18,9 @@ type DiscState struct {
 	// A task representing the disc being moved from the inbox.
 	MovedFromInboxTask Task `json:"moved_from_inbox,omitzero"`
 
+	// A task representing the disc being added to the catalog.
+	DiscInCatalogTask Task `json:"disc_in_catalog_task,omitzero"`
+
 	// The latest information about the list of files contained on the disc.
 	// This can be empty if file discovery has not yet completed.
 	Files []*DiscFileState `json:"files,omitempty"`
@@ -138,10 +141,33 @@ func (d *discWorkflow) Main(ctx workflow.Context, params *DiscParams) error {
 	if !d.moveFromInbox(ctx, params.InboxBasename) {
 		return nil
 	}
+	if !d.addDiscToCatalog(ctx, params.InboxBasename) {
+		return nil
+	}
 	if !d.discoverVideoFilesInDisc(ctx) {
 		return nil
 	}
 	return nil
+}
+
+func (d *discWorkflow) addDiscToCatalog(ctx workflow.Context, originalName string) (ok bool) {
+	d.state.DiscInCatalogTask.MarkPending()
+	ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
+		StartToCloseTimeout: 10 * time.Second,
+	})
+	params := &videoact.AddDiscToCatalogParams{
+		DiscUUID:     d.discUUID,
+		OriginalName: originalName,
+	}
+	act := &videoact.Basic{}
+	if err := workflow.ExecuteActivity(ctx, act.AddDiscToCatalog, params).Get(ctx, nil); err != nil {
+		err = fmt.Errorf("failed to add disc to catalog: %w", err)
+		d.state.DiscInCatalogTask.MarkFailed(err)
+	} else {
+		d.state.DiscInCatalogTask.MarkDone()
+		ok = true
+	}
+	return
 }
 
 func (d *discWorkflow) setupQueryHandler(ctx workflow.Context) error {
