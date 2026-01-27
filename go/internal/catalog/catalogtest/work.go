@@ -480,6 +480,165 @@ func runWorkTests(t *testing.T, clearAndConnect func(t *testing.T) catalog.Clien
 				}
 			},
 		},
+		{
+			name: "PutExtraWork_Create",
+			test: func(t *testing.T, client catalog.Client) {
+				ctx := t.Context()
+				extraWorkUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000002")
+				parentWorkUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
+				extraWork := &catalog.ExtraWork{
+					WorkUUID: parentWorkUUID,
+				}
+
+				result, err := client.PutExtraWork(ctx, extraWorkUUID, extraWork)
+				if err != nil {
+					t.Fatalf("PutExtraWork failed: %v", err)
+				}
+				if *result != catalog.PutResultCreated {
+					t.Fatalf("expected PutResultCreated, got %v", *result)
+				}
+			},
+		},
+		{
+			name: "PutExtraWork_Replace",
+			test: func(t *testing.T, client catalog.Client) {
+				ctx := t.Context()
+				extraWorkUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000002")
+				parentWorkUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
+				extraWork := &catalog.ExtraWork{
+					WorkUUID: parentWorkUUID,
+				}
+
+				result1, err := client.PutExtraWork(ctx, extraWorkUUID, extraWork)
+				if err != nil {
+					t.Fatalf("first PutExtraWork failed: %v", err)
+				}
+				if *result1 != catalog.PutResultCreated {
+					t.Fatalf("expected PutResultCreated, got %v", *result1)
+				}
+
+				newParentWorkUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000003")
+				extraWork2 := &catalog.ExtraWork{
+					WorkUUID: newParentWorkUUID,
+				}
+
+				result2, err := client.PutExtraWork(ctx, extraWorkUUID, extraWork2)
+				if err != nil {
+					t.Fatalf("second PutExtraWork failed: %v", err)
+				}
+				if *result2 != catalog.PutResultReplaced {
+					t.Fatalf("expected PutResultReplaced, got %v", *result2)
+				}
+
+				work, err := client.GetWork(ctx, extraWorkUUID)
+				if err != nil {
+					t.Fatalf("GetWork failed: %v", err)
+				}
+				if work.ExtraWork.Get().WorkUUID != newParentWorkUUID {
+					t.Fatalf("expected WorkUUID %s, got %s", newParentWorkUUID, work.ExtraWork.Get().WorkUUID)
+				}
+			},
+		},
+		{
+			name: "PutExtraWork_GetWork",
+			test: func(t *testing.T, client catalog.Client) {
+				ctx := t.Context()
+				extraWorkUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000002")
+				parentWorkUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
+				extraWork := &catalog.ExtraWork{
+					WorkUUID: parentWorkUUID,
+				}
+
+				_, err := client.PutExtraWork(ctx, extraWorkUUID, extraWork)
+				if err != nil {
+					t.Fatalf("PutExtraWork failed: %v", err)
+				}
+
+				work, err := client.GetWork(ctx, extraWorkUUID)
+				if err != nil {
+					t.Fatalf("GetWork failed: %v", err)
+				}
+				if work.UUID != extraWorkUUID {
+					t.Fatalf("expected UUID %s, got %s", extraWorkUUID, work.UUID)
+				}
+				if work.ExtraWork == nil {
+					t.Fatal("expected ExtraWork to be set")
+				}
+				if work.ExtraWork.Get().WorkUUID != parentWorkUUID {
+					t.Fatalf("expected WorkUUID %s, got %s", parentWorkUUID, work.ExtraWork.Get().WorkUUID)
+				}
+			},
+		},
+		{
+			name: "PatchExtraWork_SetWorkUUID",
+			test: func(t *testing.T, client catalog.Client) {
+				ctx := t.Context()
+				extraWorkUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000002")
+				parentWorkUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
+				newParentWorkUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000003")
+				extraWork := &catalog.ExtraWork{
+					WorkUUID: parentWorkUUID,
+				}
+
+				_, err := client.PutExtraWork(ctx, extraWorkUUID, extraWork)
+				if err != nil {
+					t.Fatalf("PutExtraWork failed: %v", err)
+				}
+
+				patch := &catalog.ExtraWorkPatch{
+					WorkUUID: catalog.NewPatch(newParentWorkUUID),
+				}
+				work, err := client.PatchExtraWork(ctx, extraWorkUUID, patch)
+				if err != nil {
+					t.Fatalf("PatchExtraWork failed: %v", err)
+				}
+				if work.ExtraWork.Get().WorkUUID != newParentWorkUUID {
+					t.Fatalf("expected WorkUUID %s, got %s", newParentWorkUUID, work.ExtraWork.Get().WorkUUID)
+				}
+			},
+		},
+		{
+			name: "PatchExtraWork_NotFound",
+			test: func(t *testing.T, client catalog.Client) {
+				ctx := t.Context()
+				extraWorkUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000002")
+				parentWorkUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
+
+				patch := &catalog.ExtraWorkPatch{
+					WorkUUID: catalog.NewPatch(parentWorkUUID),
+				}
+				_, err := client.PatchExtraWork(ctx, extraWorkUUID, patch)
+				if !errors.Is(err, catalog.ErrNotFound) {
+					t.Fatalf("expected ErrNotFound, got %v", err)
+				}
+			},
+		},
+		{
+			name: "PutExtraWork_WrongKind",
+			test: func(t *testing.T, client catalog.Client) {
+				ctx := t.Context()
+				conflictUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000001")
+				parentWorkUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000002")
+
+				// First create a MovieWork
+				movieWork := &catalog.MovieWork{
+					Title: "The Matrix",
+				}
+				_, err := client.PutMovieWork(ctx, conflictUUID, movieWork)
+				if err != nil {
+					t.Fatalf("PutMovieWork failed: %v", err)
+				}
+
+				// Try to patch it as an ExtraWork
+				patch := &catalog.ExtraWorkPatch{
+					WorkUUID: catalog.NewPatch(parentWorkUUID),
+				}
+				_, err = client.PatchExtraWork(ctx, conflictUUID, patch)
+				if !errors.Is(err, catalog.ErrKind) {
+					t.Fatalf("expected ErrKind, got %v", err)
+				}
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

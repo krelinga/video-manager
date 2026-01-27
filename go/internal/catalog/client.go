@@ -40,6 +40,7 @@ type Work struct {
 	// Exactly one of the following should be set.
 	MovieWork        Opt[MovieWork]
 	MovieEditionWork Opt[MovieEditionWork]
+	ExtraWork        Opt[ExtraWork]
 }
 
 type MovieWork struct {
@@ -98,6 +99,30 @@ func (mewp *MovieEditionWorkPatch) Patch(mew *MovieEditionWork) {
 	}
 	if mewp.MovieWorkUUID != nil {
 		mewp.MovieWorkUUID.Patch(&mew.MovieWorkUUID)
+	}
+}
+
+// ExtraWork represents an 'extra' that is associated with another work.
+type ExtraWork struct {
+	WorkUUID uuid.UUID
+}
+
+func (ew *ExtraWork) Validate() error {
+	if ew.WorkUUID == uuid.Nil {
+		return fmt.Errorf("%w: ExtraWork.WorkUUID cannot be nil", ErrEntity)
+	}
+	return nil
+}
+
+// ExtraWorkPatch represents a patch for an ExtraWork.
+type ExtraWorkPatch struct {
+	WorkUUID Patcher[uuid.UUID]
+}
+
+// Patch applies the patch to the given ExtraWork.
+func (ewp *ExtraWorkPatch) Patch(ew *ExtraWork) {
+	if ewp.WorkUUID != nil {
+		ewp.WorkUUID.Patch(&ew.WorkUUID)
 	}
 }
 
@@ -301,6 +326,20 @@ type Client interface {
 	// - ErrEntity if the patched entity would be invalid.
 	// - ErrInternal for other errors.
 	PatchMovieEditionWork(ctx context.Context, workUUID uuid.UUID, patch *MovieEditionWorkPatch) (*Work, error)
+
+	// PutExtraWork creates or replaces an Extra Work with the given UUID.
+	// Returns:
+	// - ErrEntity if in.Validate() returns an error.
+	// - ErrKind if a work with the given UUID already exists with a different type.
+	PutExtraWork(ctx context.Context, workUUID uuid.UUID, in *ExtraWork) (*PutResult, error)
+
+	// PatchExtraWork applies a patch to the given Extra Work.
+	// Returns:
+	// - ErrNotFound if no such Work exists.
+	// - ErrKind if the Work is not an Extra Work.
+	// - ErrEntity if the patched entity would be invalid.
+	// - ErrInternal for other errors.
+	PatchExtraWork(ctx context.Context, workUUID uuid.UUID, patch *ExtraWorkPatch) (*Work, error)
 
 	// SOURCE METHODS
 	// ==============

@@ -10,11 +10,12 @@ type workKind string
 const (
 	workKindMovie        workKind = "movie"
 	workKindMovieEdition workKind = "movie_edition"
+	workKindExtra        workKind = "extra"
 )
 
 func (wk workKind) IsValid() bool {
 	switch wk {
-	case workKindMovie, workKindMovieEdition:
+	case workKindMovie, workKindMovieEdition, workKindExtra:
 		return true
 	default:
 		return false

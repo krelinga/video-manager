@@ -108,6 +108,49 @@ func (mew *movieEditionWorkJSON) Validate() error {
 	return mew.ToPublic().Validate()
 }
 
+type extraWorkJSON struct {
+	WorkUUID uuid.UUID `json:"work_uuid"`
+}
+
+func (ew *extraWorkJSON) ToPublic() *catalog.ExtraWork {
+	if ew == nil {
+		return nil
+	}
+	return &catalog.ExtraWork{
+		WorkUUID: ew.WorkUUID,
+	}
+}
+
+func (ew *extraWorkJSON) FromPublic(in *catalog.ExtraWork) {
+	if ew == nil || in == nil {
+		return
+	}
+	ew.WorkUUID = in.WorkUUID
+}
+
+func (ew *extraWorkJSON) UnmarshalJSON(data []byte) error {
+	type alias extraWorkJSON
+	var a alias
+	if err := json.Unmarshal(data, &a); err != nil {
+		return fmt.Errorf("%w: failed to unmarshal extra work JSON: %w", catalog.ErrInternal, err)
+	}
+	*ew = extraWorkJSON(a)
+	return nil
+}
+
+func (ew *extraWorkJSON) MarshalJSON() ([]byte, error) {
+	type alias extraWorkJSON
+	bytes, err := json.Marshal(alias(*ew))
+	if err != nil {
+		return nil, fmt.Errorf("%w: failed to marshal extra work JSON: %w", catalog.ErrInternal, err)
+	}
+	return bytes, nil
+}
+
+func (ew *extraWorkJSON) Validate() error {
+	return ew.ToPublic().Validate()
+}
+
 type fileSourceJSON struct {
 	Path           string     `json:"path"`
 	DiscSourceUUID *uuid.UUID `json:"disc_source_uuid,omitempty"`
