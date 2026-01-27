@@ -217,7 +217,6 @@ func runSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Clien
 				discSourceUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000002")
 				discSource := &catalog.DiscSource{
 					OriginalName:  "Movie Disc",
-					Path:          "/mnt/disc",
 					AllFilesAdded: false,
 				}
 
@@ -237,7 +236,6 @@ func runSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Clien
 				discSourceUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000002")
 				discSource := &catalog.DiscSource{
 					OriginalName:  "Movie Disc",
-					Path:          "/mnt/disc",
 					AllFilesAdded: false,
 				}
 
@@ -251,7 +249,6 @@ func runSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Clien
 
 				discSource2 := &catalog.DiscSource{
 					OriginalName:  "Different Disc",
-					Path:          "/mnt/disc2",
 					AllFilesAdded: true,
 				}
 
@@ -279,7 +276,6 @@ func runSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Clien
 				discSourceUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000002")
 				discSource := &catalog.DiscSource{
 					OriginalName:  "Movie Disc",
-					Path:          "/mnt/disc",
 					AllFilesAdded: true,
 				}
 
@@ -301,9 +297,6 @@ func runSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Clien
 				if source.DiscSource.Get().OriginalName != "Movie Disc" {
 					t.Fatalf("expected OriginalName 'Movie Disc', got %q", source.DiscSource.Get().OriginalName)
 				}
-				if source.DiscSource.Get().Path != "/mnt/disc" {
-					t.Fatalf("expected path '/mnt/disc', got %q", source.DiscSource.Get().Path)
-				}
 				if !source.DiscSource.Get().AllFilesAdded {
 					t.Fatal("expected AllFilesAdded to be true")
 				}
@@ -316,7 +309,6 @@ func runSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Clien
 				discSourceUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000002")
 				discSource := &catalog.DiscSource{
 					OriginalName:  "Movie Disc",
-					Path:          "/mnt/disc",
 					AllFilesAdded: false,
 				}
 
@@ -338,41 +330,12 @@ func runSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Clien
 			},
 		},
 		{
-			name: "PatchDiscSource_SetPath",
-			test: func(t *testing.T, client catalog.Client) {
-				ctx := t.Context()
-				discSourceUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000002")
-				discSource := &catalog.DiscSource{
-					OriginalName:  "Movie Disc",
-					Path:          "/mnt/disc",
-					AllFilesAdded: false,
-				}
-
-				_, err := client.PutDiscSource(ctx, discSourceUUID, discSource)
-				if err != nil {
-					t.Fatalf("PutDiscSource failed: %v", err)
-				}
-
-				patch := &catalog.DiscSourcePatch{
-					Path: catalog.NewPatch("/mnt/disc2"),
-				}
-				source, err := client.PatchDiscSource(ctx, discSourceUUID, patch)
-				if err != nil {
-					t.Fatalf("PatchDiscSource failed: %v", err)
-				}
-				if source.DiscSource.Get().Path != "/mnt/disc2" {
-					t.Fatalf("expected path '/mnt/disc2', got %q", source.DiscSource.Get().Path)
-				}
-			},
-		},
-		{
 			name: "PatchDiscSource_SetAllFilesAdded",
 			test: func(t *testing.T, client catalog.Client) {
 				ctx := t.Context()
 				discSourceUUID := mustParseUUID(t, "00000000-0000-0000-0000-000000000002")
 				discSource := &catalog.DiscSource{
 					OriginalName:  "Movie Disc",
-					Path:          "/mnt/disc",
 					AllFilesAdded: false,
 				}
 
@@ -417,7 +380,6 @@ func runSourceTests(t *testing.T, clearAndConnect func(*testing.T) catalog.Clien
 				// First create a DiscSource
 				discSource := &catalog.DiscSource{
 					OriginalName:  "Movie Disc",
-					Path:          "/mnt/disc",
 					AllFilesAdded: false,
 				}
 				_, err := client.PutDiscSource(ctx, conflictUUID, discSource)

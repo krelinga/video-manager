@@ -199,7 +199,6 @@ func (fs *fileSourceJSON) Validate() error {
 
 type discSourceJSON struct {
 	OriginalName  string `json:"original_name"`
-	Path          string `json:"path"`
 	AllFilesAdded bool   `json:"all_files_added"`
 }
 
@@ -209,7 +208,6 @@ func (ds *discSourceJSON) ToPublic() *catalog.DiscSource {
 	}
 	return &catalog.DiscSource{
 		OriginalName:  ds.OriginalName,
-		Path:          ds.Path,
 		AllFilesAdded: ds.AllFilesAdded,
 	}
 }
@@ -219,7 +217,6 @@ func (ds *discSourceJSON) FromPublic(in *catalog.DiscSource) {
 		return
 	}
 	ds.OriginalName = in.OriginalName
-	ds.Path = in.Path
 	ds.AllFilesAdded = in.AllFilesAdded
 }
 

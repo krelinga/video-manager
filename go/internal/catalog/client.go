@@ -163,7 +163,6 @@ func (fsp *FileSourcePatch) Patch(fs *FileSource) {
 
 type DiscSource struct {
 	OriginalName  string
-	Path          string
 	AllFilesAdded bool
 }
 
@@ -171,15 +170,11 @@ func (ds *DiscSource) Validate() error {
 	if ds.OriginalName == "" {
 		return fmt.Errorf("%w: DiscSource.OriginalName cannot be empty", ErrEntity)
 	}
-	if ds.Path == "" {
-		return fmt.Errorf("%w: DiscSource.Path cannot be empty", ErrEntity)
-	}
 	return nil
 }
 
 type DiscSourcePatch struct {
 	OriginalName  Patcher[string]
-	Path          Patcher[string]
 	AllFilesAdded Patcher[bool]
 }
 
@@ -187,9 +182,6 @@ type DiscSourcePatch struct {
 func (dsp *DiscSourcePatch) Patch(ds *DiscSource) {
 	if dsp.OriginalName != nil {
 		dsp.OriginalName.Patch(&ds.OriginalName)
-	}
-	if dsp.Path != nil {
-		dsp.Path.Patch(&ds.Path)
 	}
 	if dsp.AllFilesAdded != nil {
 		dsp.AllFilesAdded.Patch(&ds.AllFilesAdded)
