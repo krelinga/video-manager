@@ -69,3 +69,37 @@ func GetDuration(ctx context.Context, path string) (time.Duration, error) {
 
 	return time.Duration(durationSec * float64(time.Second)), nil
 }
+
+// GetChapterEnds retrieves the end times of chapters in the video at the given path.
+func GetChapterEnds(ctx context.Context, path string) ([]time.Duration, error) {
+	cmd := exec.CommandContext(ctx, "ffprobe",
+		"-v", "error",
+		"-show_entries", "chapter=end_time",
+		"-of", "csv=p=0",
+		path,
+	)
+
+	output, err := cmd.Output()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return nil, fmt.Errorf("failed to probe chapters: %w: %s", err, exitErr.Stderr)
+		}
+		return nil, fmt.Errorf("failed to probe chapters: %w", err)
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	if len(lines) == 1 && lines[0] == "" {
+		return nil, nil // No chapters found
+	}
+
+	ends := make([]time.Duration, 0, len(lines))
+	for _, line := range lines {
+		endSec, err := strconv.ParseFloat(strings.TrimSpace(line), 64)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse chapter end time: %w", err)
+		}
+		ends = append(ends, time.Duration(endSec*float64(time.Second)))
+	}
+
+	return ends, nil
+}
