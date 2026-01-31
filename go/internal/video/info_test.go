@@ -102,3 +102,46 @@ func TestGetDuration(t *testing.T) {
 		}
 	})
 }
+
+func TestGetChapterEnds(t *testing.T) {
+	// TODO: Add test cases with a video file that has multiple chapters.
+	// The current test file has no chapters.
+
+	t.Run("video file with no chapters", func(t *testing.T) {
+		ctx := context.Background()
+		ends, err := video.GetChapterEnds(ctx, testVideoPath)
+		if err != nil {
+			t.Fatalf("GetChapterEnds() error = %v", err)
+		}
+
+		if ends != nil {
+			t.Errorf("GetChapterEnds() = %v, want nil for file with no chapters", ends)
+		}
+	})
+
+	t.Run("non-existent file", func(t *testing.T) {
+		ctx := context.Background()
+		_, err := video.GetChapterEnds(ctx, "/nonexistent/file.mkv")
+		if err == nil {
+			t.Error("GetChapterEnds() expected error for non-existent file, got nil")
+		}
+	})
+
+	t.Run("context cancellation", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel() // Cancel immediately
+
+		_, err := video.GetChapterEnds(ctx, testVideoPath)
+		if err == nil {
+			t.Error("GetChapterEnds() expected error for cancelled context, got nil")
+		}
+	})
+
+	t.Run("invalid file path", func(t *testing.T) {
+		ctx := context.Background()
+		_, err := video.GetChapterEnds(ctx, "")
+		if err == nil {
+			t.Error("GetChapterEnds() expected error for empty path, got nil")
+		}
+	})
+}
